@@ -1,0 +1,583 @@
+
+
+<link rel="stylesheet" href="../../assets/css/jquery-ui.custom.min.css" />
+<link rel="stylesheet" href="../../assets/css/jquery.gritter.css" />
+<link rel="stylesheet" href="../../assets/css/dropzone.css" />
+
+<style>
+/* some elements used in demo only */
+.spinner-preview {
+	width: 100px;
+	height: 100px;
+	text-align: center;
+	margin-top: 60px;
+}
+
+.dropdown-preview {
+	margin: 0 5px;
+	display: inline-block;
+}
+
+.dropdown-preview>.dropdown-menu {
+	display: block;
+	position: static;
+	margin-bottom: 5px;
+}
+</style>
+
+<!-- ajax layout which only needs content area -->
+<div class="page-header">
+	<h1>
+		Create Article <small> <i
+			class="ace-icon fa fa-angle-double-right"></i> Create your article by
+			means of various manner
+		</small>
+	</h1>
+</div>
+<!-- /.page-header -->
+
+<div class="row">
+	<div class="col-xs-12">
+		<form class="form-horizontal" role="form">
+			<!-- #section:elements.form -->
+			<div class="form-group">
+				<label class="col-sm-3 control-label no-padding-right"
+					for="form-field-1"> Name</label>
+
+				<div class="col-sm-9">
+					<input type="text" id="name"  name="name" placeholder=""
+						class="col-xs-10 col-sm-5" />
+				</div>
+
+				<label class="col-sm-3 control-label no-padding-right"
+					for="form-field-1"> Comment </label>
+
+				<div class="col-sm-9">
+					<textarea id="remark" name="remark" class="form-control"
+						placeholder="this is XXX related"></textarea>
+				</div>
+			</div>
+		</form>
+	</div>
+	<div class="col-xs-12">
+		<!-- PAGE CONTENT BEGINS -->
+		<div class="row">
+			<div class="col-sm-12">
+				<!-- #section:elements.tab -->
+				<div class="tabbable">
+					<ul class="nav nav-tabs" id="myTab">
+						<li class="active"><a data-toggle="tab" href="#stringUpload">
+								Questions </a></li>
+
+					</ul>
+
+					<div class="tab-content">
+						<div id="stringUpload" class="tab-pane fade in active">
+							<div id="questionsDiv" style="margin: 5px;"></div>
+							<button class="btn btn-primary" onclick="addQues()">Add
+								Question</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- /section:elements.tab -->
+			</div>
+			<!-- /.col -->
+
+			<div class="vspace-6-sm"></div>
+
+
+		</div>
+		<!-- /.row -->
+
+		<div class="space"></div>
+
+		<script type="text/javascript">
+			var $path_assets = "../../assets";//this will be used in gritter alerts containing images
+		</script>
+
+		<!-- PAGE CONTENT ENDS -->
+	</div>
+	<!-- /.col -->
+
+	<div id="quesTemplateDiv" style="display: none">
+		<div style="margin: 5px;">
+			<table>
+				<tr>
+					<td>Word <span name='indexSpan'>$#{Index}</span></td>
+					<td><input type="text" name="word" /></td>
+				</tr>
+				<tr>
+					<td>Sentence</td>
+					<td><textarea name="sentence" /></td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+</div>
+<!-- /.row -->
+
+<div class="clearfix form-actions">
+	<div class="col-md-offset-3 col-md-9">
+		<button class="btn btn-info" type="button" onclick="addQuiz2()">
+			<i class="ace-icon fa fa-check bigger-110"></i> Submit
+		</button>
+
+		&nbsp; &nbsp; &nbsp;
+		<button class="btn" type="button" onclick="resetForm()">
+			<i class="ace-icon fa fa-undo bigger-110"></i> Reset
+		</button>
+	</div>
+</div>
+<!-- page specific plugin scripts -->
+
+<script type="text/javascript">
+	var quesIndex = 1;
+	function addQues() {
+		//console.log("addQues");
+		//console.log($("#quesTemplateDiv").html());
+		
+		$("#questionsDiv").append($("#quesTemplateDiv").html().replace("$#{Index}", quesIndex));
+		quesIndex++;
+	}
+
+	function resetForm() {
+		console.log("resetForm");
+		location.reload();
+	}
+	
+	function addQuiz2() {
+		var wordArr = "";
+		var senArr = "";
+		
+		var allWords = $("input[name='word']");
+		var allSens = $("textarea[name='sentence']");
+		
+		for(var i = 0; i < allWords.length -1; i++) {
+			wordArr += $(allWords[i]).val();
+			if(i != allWords.length - 1) {
+				wordArr += "######";
+			}
+		}
+		for(var i = 0; i < allSens.length - 1; i++) {
+			senArr += $(allSens[i]).val();
+			if(i != allSens.length - 1) {
+				senArr += "######";
+			}
+		}
+		
+		$.ajax({
+			type : "POST",
+			url : "../../addOrUpdateQuiz",
+			data : {
+				oper : 'add',
+				name : $("#name").val(),
+				remark : $("#remark").val(),
+				wordArr : wordArr,
+				senArr : senArr
+			},
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				//console.log("data:" + data);
+				alert("upload success");
+				window.location = "ajax.html#page/quizs";
+			}
+
+		});
+	}
+</script>
+
+
+
+<!--[if lte IE 8]>
+  <script src="../../assets/js/excanvas.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+	var fileNameVar = "";
+	var fileType = "string";
+	var scripts = [ null, "../../assets/js/jquery-ui.custom.min.js",
+			"../../assets/js/jquery.ui.touch-punch.min.js",
+			"../../assets/js/bootbox.min.js",
+			"../../assets/js/jquery.easypiechart.min.js",
+			"../../assets/js/jquery.gritter.min.js",
+			"../../assets/js/spin.min.js",
+			"../../assets/js/jquery.autosize.min.js", null ]
+	ace
+			.load_ajax_scripts(
+					scripts,
+					function() {
+						//inline scripts related to this page
+						jQuery(function($) {
+
+							/**
+							$('#accordion').on('shown.bs.collapse', function (e) {
+								console.log($(e.target).is('#collapseTwo'))
+							});
+							 */
+
+							$('#myTab a[data-toggle="tab"]').on('shown.bs.tab',
+									function(e) {
+										//if($(e.target).attr('href') == "#fileUpload") drawChartNow();
+									})
+
+							/**
+								//go to next tab, without user clicking
+								$('#myTab > .active').next().find('> a').trigger('click');
+							 */
+
+							$('#accordion-style').on(
+									'click',
+									function(ev) {
+										var target = $('input', ev.target);
+										var which = parseInt(target.val());
+										if (which == 2)
+											$('#accordion').addClass(
+													'accordion-style2');
+										else
+											$('#accordion').removeClass(
+													'accordion-style2');
+									});
+
+							//$('[href="#collapseTwo"]').trigger('click');
+
+							var oldie = /msie\s*(8|7|6)/
+									.test(navigator.userAgent.toLowerCase());
+							$('.easy-pie-chart.percentage').each(function() {
+								$(this).easyPieChart({
+									barColor : $(this).data('color'),
+									trackColor : '#EEEEEE',
+									scaleColor : false,
+									lineCap : 'butt',
+									lineWidth : 8,
+									animate : oldie ? false : 1000,
+									size : 75
+								}).css('color', $(this).data('color'));
+							});
+
+							$('[data-rel=tooltip]').tooltip();
+							$('[data-rel=popover]').popover({
+								html : true
+							});
+
+							$('#gritter-regular')
+									.on(
+											ace.click_event,
+											function() {
+												$.gritter
+														.add({
+															title : 'This is a regular notice!',
+															text : 'This will fade out after a certain amount of time. Vivamus eget tincidunt velit. Cum sociis natoque penatibus et <a href="#" class="blue">magnis dis parturient</a> montes, nascetur ridiculus mus.',
+															image : $path_assets
+																	+ '/avatars/avatar1.png',
+															sticky : false,
+															time : '',
+															class_name : (!$(
+																	'#gritter-light')
+																	.get(0).checked ? 'gritter-light'
+																	: '')
+														});
+
+												return false;
+											});
+
+							$('#gritter-sticky')
+									.on(
+											ace.click_event,
+											function() {
+												var unique_id = $.gritter
+														.add({
+															title : 'This is a sticky notice!',
+															text : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus eget tincidunt velit. Cum sociis natoque penatibus et <a href="#" class="red">magnis dis parturient</a> montes, nascetur ridiculus mus.',
+															image : $path_assets
+																	+ '/avatars/avatar.png',
+															sticky : true,
+															time : '',
+															class_name : 'gritter-info'
+																	+ (!$(
+																			'#gritter-light')
+																			.get(
+																					0).checked ? ' gritter-light'
+																			: '')
+														});
+
+												return false;
+											});
+
+							$('#gritter-without-image')
+									.on(
+											ace.click_event,
+											function() {
+												$.gritter
+														.add({
+															// (string | mandatory) the heading of the notification
+															title : 'This is a notice without an image!',
+															// (string | mandatory) the text inside the notification
+															text : 'This will fade out after a certain amount of time. Vivamus eget tincidunt velit. Cum sociis natoque penatibus et <a href="#" class="orange">magnis dis parturient</a> montes, nascetur ridiculus mus.',
+															class_name : 'gritter-success'
+																	+ (!$(
+																			'#gritter-light')
+																			.get(
+																					0).checked ? ' gritter-light'
+																			: '')
+														});
+
+												return false;
+											});
+
+							$('#gritter-max3')
+									.on(
+											ace.click_event,
+											function() {
+												$.gritter
+														.add({
+															title : 'This is a notice with a max of 3 on screen at one time!',
+															text : 'This will fade out after a certain amount of time. Vivamus eget tincidunt velit. Cum sociis natoque penatibus et <a href="#" class="green">magnis dis parturient</a> montes, nascetur ridiculus mus.',
+															image : $path_assets
+																	+ '/avatars/avatar3.png',
+															sticky : false,
+															before_open : function() {
+																if ($('.gritter-item-wrapper').length >= 3) {
+																	return false;
+																}
+															},
+															class_name : 'gritter-warning'
+																	+ (!$(
+																			'#gritter-light')
+																			.get(
+																					0).checked ? ' gritter-light'
+																			: '')
+														});
+
+												return false;
+											});
+
+							$('#gritter-center')
+									.on(
+											ace.click_event,
+											function() {
+												$.gritter
+														.add({
+															title : 'This is a centered notification',
+															text : 'Just add a "gritter-center" class_name to your $.gritter.add or globally to $.gritter.options.class_name',
+															class_name : 'gritter-info gritter-center'
+																	+ (!$(
+																			'#gritter-light')
+																			.get(
+																					0).checked ? ' gritter-light'
+																			: '')
+														});
+
+												return false;
+											});
+
+							$('#gritter-error')
+									.on(
+											ace.click_event,
+											function() {
+												$.gritter
+														.add({
+															title : 'This is a warning notification',
+															text : 'Just add a "gritter-light" class_name to your $.gritter.add or globally to $.gritter.options.class_name',
+															class_name : 'gritter-error'
+																	+ (!$(
+																			'#gritter-light')
+																			.get(
+																					0).checked ? ' gritter-light'
+																			: '')
+														});
+
+												return false;
+											});
+
+							$("#gritter-remove").on(ace.click_event,
+									function() {
+										$.gritter.removeAll();
+										return false;
+									});
+
+							///////
+
+							$("#bootbox-regular").on(
+									ace.click_event,
+									function() {
+										bootbox.prompt("What is your name?",
+												function(result) {
+													if (result === null) {
+
+													} else {
+
+													}
+												});
+									});
+
+							$("#bootbox-confirm").on(
+									ace.click_event,
+									function() {
+										bootbox.confirm("Are you sure?",
+												function(result) {
+													if (result) {
+														//
+													}
+												});
+									});
+
+							$('textarea[class*=autosize]').autosize({
+								append : "\n"
+							});
+
+							/**
+								$("#bootbox-confirm").on(ace.click_event, function() {
+									bootbox.confirm({
+										message: "Are you sure?",
+										buttons: {
+										  confirm: {
+											 label: "OK",
+											 className: "btn-primary btn-sm",
+										  },
+										  cancel: {
+											 label: "Cancel",
+											 className: "btn-sm",
+										  }
+										},
+										callback: function(result) {
+											if(result) alert(1)
+										}
+									  }
+									);
+								});
+							 **/
+
+							$("#bootbox-options")
+									.on(
+											ace.click_event,
+											function() {
+												bootbox
+														.dialog({
+															message : "<span class='bigger-110'>I am a custom dialog with smaller buttons</span>",
+															buttons : {
+																"success" : {
+																	"label" : "<i class='ace-icon fa fa-check'></i> Success!",
+																	"className" : "btn-sm btn-success",
+																	"callback" : function() {
+																		//Example.show("great success");
+																	}
+																},
+																"danger" : {
+																	"label" : "Danger!",
+																	"className" : "btn-sm btn-danger",
+																	"callback" : function() {
+																		//Example.show("uh oh, look out!");
+																	}
+																},
+																"click" : {
+																	"label" : "Click ME!",
+																	"className" : "btn-sm btn-primary",
+																	"callback" : function() {
+																		//Example.show("Primary button");
+																	}
+																},
+																"button" : {
+																	"label" : "Just a button...",
+																	"className" : "btn-sm"
+																}
+															}
+														});
+											});
+
+							$('#spinner-opts small').css({
+								display : 'inline-block',
+								width : '60px'
+							})
+
+							var slide_styles = [ '', 'green', 'red', 'purple',
+									'orange', 'dark' ];
+							var ii = 0;
+							$("#spinner-opts input[type=text]")
+									.each(
+											function() {
+												var $this = $(this);
+												$this.hide().after('<span />');
+												$this
+														.next()
+														.addClass(
+																'ui-slider-small')
+														.addClass(
+																"inline ui-slider-"
+																		+ slide_styles[ii++
+																				% slide_styles.length])
+														.css({
+															'width' : '125px'
+														})
+														.slider(
+																{
+																	value : parseInt($this
+																			.val()),
+																	range : "min",
+																	animate : true,
+																	min : parseInt($this
+																			.data('min')),
+																	max : parseInt($this
+																			.data('max')),
+																	step : parseFloat($this
+																			.data('step')),
+																	slide : function(
+																			event,
+																			ui) {
+																		$this
+																				.val(ui.value);
+																		spinner_update();
+																	}
+																});
+											});
+
+							$.fn.spin = function(opts) {
+								this.each(function() {
+									var $this = $(this), data = $this.data();
+
+									if (data.spinner) {
+										data.spinner.stop();
+										delete data.spinner;
+									}
+									if (opts !== false) {
+										data.spinner = new Spinner($.extend({
+											color : $this.css('color')
+										}, opts)).spin(this);
+									}
+								});
+								return this;
+							};
+
+							function spinner_update() {
+								var opts = {};
+								$('#spinner-opts input[type=text]')
+										.each(
+												function() {
+													opts[this.name] = parseFloat(this.value);
+												});
+								$('#spinner-preview').spin(opts);
+							}
+
+							$('#id-pills-stacked').removeAttr('checked').on(
+									'click',
+									function() {
+										$('.nav-pills').toggleClass(
+												'nav-stacked');
+									});
+
+						});
+					});
+</script>
+
+
+<!-- page specific plugin scripts -->
+<script type="text/javascript">
+	var scripts = [ null, "../../assets/js/dropzone.min.js", null ]
+	ace.load_ajax_scripts(scripts, function() {
+		//inline scripts related to this page
+		jQuery(function($) {
+
+		});
+	});
+</script>

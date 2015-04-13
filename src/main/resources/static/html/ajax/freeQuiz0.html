@@ -1,0 +1,240 @@
+
+<title>Form Elements - Ace Admin</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/jquery-ui.custom.min.css" />
+<link rel="stylesheet" href="../../assets/css/chosen.css" />
+
+<style>
+
+/* Swipe 2 required styles */
+
+.swipe {
+  overflow: hidden;
+  visibility: hidden;
+  position: relative;
+}
+.swipe-wrap {
+  overflow: hidden;
+  position: relative;
+}
+.swipe-wrap > div {
+  float:left;
+  width:100%;
+  position: relative;
+}
+
+/* END required styles */
+
+</style>
+
+<!-- ajax layout which only needs content area -->
+<div class="page-header">
+	<h1>
+		Quiz <small> <i class="ace-icon fa fa-angle-double-right"></i>
+			enhance your memory 
+		</small>
+	</h1>
+</div>
+<!-- /.page-header -->
+
+<div class="row">
+	<div class="col-xs-12">
+
+		<div id='mySwipe' style='max-width: 500px; margin: 0 auto'
+			class='swipe'>
+			<div class='swipe-wrap' id="contentDiv">
+				 
+			</div>
+		</div>
+		<div style='text-align:center;padding-top:20px;'>
+  
+		  <button id="prevBtn" onclick='mySwipe.prev()'>prev</button> 
+		  <button id="nextBtn"  onclick='mySwipe.next()'>next</button>
+		
+		</div>
+		
+		<!-- PAGE CONTENT ENDS -->
+	</div>
+	<!-- /.col -->
+</div>
+<!-- /.row -->
+
+<!-- page specific plugin scripts -->
+
+<!--[if lte IE 8]>
+  <script src="../../assets/js/excanvas.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+	var scripts = [ null, "../../assets/js/jquery-ui.custom.min.js",
+			"../../assets/js/jquery.ui.touch-punch.min.js",
+			"../../assets/js/chosen.jquery.min.js",
+			"../../assets/js/fuelux/fuelux.spinner.min.js",
+			"../../assets/js/date-time/bootstrap-datepicker.min.js",
+			"../../assets/js/date-time/bootstrap-timepicker.min.js",
+			"../../assets/js/date-time/moment.min.js",
+			"../../assets/js/date-time/daterangepicker.min.js",
+			"../../assets/js/date-time/bootstrap-datetimepicker.min.js",
+			"../../assets/js/bootstrap-colorpicker.min.js",
+			"../../assets/js/jquery.knob.min.js",
+			"../../assets/js/jquery.autosize.min.js",
+			"../../assets/js/jquery.inputlimiter.1.3.1.min.js",
+			"../../assets/js/jquery.maskedinput.min.js",
+			"../../assets/js/swipe.js",
+			"../../assets/js/typeahead.jquery.min.js", null ]
+	ace
+			.load_ajax_scripts(
+					scripts,
+					function() {
+						//inline scripts related to this page
+						jQuery(function($) {
+							//$('#input1').mask('*****');
+							var totalSize = 0;
+							var ajaxQuizData = null;
+							
+							$.ajax({
+								type : "POST",
+								url : "../../getWordListForQuiz",
+								async : false,
+								dataType : "json",
+								success : function(data) {
+									var contentsInfo = "";
+									ajaxQuizData = data;
+									totalSize = data.length;
+									for(var i = 0; i < data.length; i++) {
+										var oneWordHtml = "";
+										oneWordHtml += "<div id='quizSpan" + i  + "'><p>";
+										oneWordHtml += "     <b>" + (i + 1) + "/" + totalSize + "</b>." + data[i].sentence;
+										oneWordHtml += "     </p>";
+										oneWordHtml += "     <p>";
+										oneWordHtml += "     " + data[i].explain2;
+										oneWordHtml += "     </p>";
+										oneWordHtml += "     <span style='display:none;' id='answerSpan" + i  + "'>" + data[i].answer + "</span>";
+										oneWordHtml += "     <span style='display:none;' id='resultSpan" + i  + "'><i class='ace-icon glyphicon glyphicon-remove'></i></span>";
+										oneWordHtml += "     <span style='display:none;' id='wordIdSpan" + i + "'>" + data[i].wordId  + "</span>";
+										oneWordHtml += "     </div>";
+										contentsInfo += oneWordHtml;
+										//	In b<input id="input1" type="input" />
+									}
+									
+									contentsInfo += ("<div id='resultDiv'>"
+											+ "</div>");
+									
+									$("#contentDiv").html(contentsInfo);
+									
+									$.mask.definitions['~']='[-A-Za-z0-9]';
+									for(var i = 0; i < data.length; i++) {
+										$('#input' + i).attr('size', data[i].blankCount);
+										var blankChars = "";
+										for(var j = 0; j < data[i].blankCount; j++) {
+											blankChars += '~';
+										}
+										$('#input' + i).mask(blankChars);
+										//	In b<input id="input1" type="input" />
+									}
+									
+									// $('#input0').focus();
+								}
+
+							});
+							
+							var elem = document.getElementById('mySwipe');
+							window.mySwipe = Swipe(elem, {
+							  // startSlide: 4,
+							  // auto: 3000,
+							   continuous: false,
+							  // disableScroll: true,
+							  // stopPropagation: true,
+							   callback: function(index, element) {
+								   //console.log("index:" + index)
+								   //$('#input' + index).focus();
+								   if(totalSize == index) {
+									   console.log("last arrived");
+									   checkAnswers();
+								   }
+							   },
+							  // transitionEnd: function(index, element) {}
+							});
+							
+							function checkAnswers() {
+								var rightCount = 0;
+								var answerInfo = "";
+								for(var i = 0; i < totalSize; i++) {
+									var oneWordId = $("#wordIdSpan" + i).html();
+									var isAnswerRight = $("#input" + i).val().toUpperCase() == $("#answerSpan" + i).html().toUpperCase(); 
+									if(isAnswerRight) {
+										rightCount++;	
+									}
+									answerInfo += (oneWordId + ":" + (isAnswerRight ? 1 : 0));
+									if(i != totalSize - 1) {
+										answerInfo +=  ",";
+									}
+								}
+								
+								console.log("answerInfo:" + answerInfo);
+								
+								var resultInfo = "Correct Rate: " + rightCount + " / " + totalSize + " = " + (rightCount / totalSize * 100) + "%";
+								
+								for(var i = 0; i < ajaxQuizData.length; i++) {
+									var oneWordHtml = "";
+									oneWordHtml += "<div style='margin-bottom:10px'><p>";
+									oneWordHtml += "     <b>" + (i + 1) + "/" + totalSize + "</b>." + ajaxQuizData[i].sentence;
+									oneWordHtml += "     </p>";
+									oneWordHtml += "     <p>";
+									oneWordHtml += "     " + ajaxQuizData[i].explain2;
+									oneWordHtml += "     </p>";
+									oneWordHtml += "     Right Answer: <span>" + ajaxQuizData[i].answer + "</span>";
+									oneWordHtml += "     <br/>My    Answer: <span>" + $("#input" + i).val() + "</span>";
+									oneWordHtml += "     <span>" + $("#resultSpan" + i).html() + "</span>";
+									oneWordHtml += "     </div>";
+									resultInfo += oneWordHtml;
+								}
+								
+								$("#resultDiv").html(resultInfo);
+								
+								$("#prevBtn").hide();
+								$("#nextBtn").hide();
+								
+								$.ajax({
+									type : "POST",
+									url : "../../submitAnswer",
+									data : {
+										answerInfo : answerInfo
+									},
+									async : true,
+									dataType : "json",
+									success : function(data) {
+										
+										//rowData.tempRank = parseRank(newRank);
+										//$("#grid-table").jqGrid('setRowData', id, rowData);
+									},
+									error : function(data) {
+										alert("submit result error, please contact administrator");
+									}
+
+								});
+								
+							}
+							
+						});
+					});
+	
+	
+			function checkAnswer(inputIndex, blankCount) {
+				var inputLength = $("#input" + inputIndex).val().replace(/\_/g, "").length; 
+				if(inputLength == blankCount) {
+					if($("#answerSpan" + inputIndex).html().toUpperCase() == $("#input" + inputIndex).val().toUpperCase()) {
+						//console.log("right for" + inputIndex);
+						$("#resultSpan" + inputIndex).html('<i class="ace-icon glyphicon glyphicon-ok"></i>');
+						mySwipe.next();
+						
+					} else {
+						//console.log("wrong for" + inputIndex);
+						$("#resultSpan" + inputIndex).html('<i class="ace-icon glyphicon glyphicon-remove"></i>');
+					}
+					$("#resultSpan" + inputIndex).show();
+					
+				}
+			}
+	
+</script>
+

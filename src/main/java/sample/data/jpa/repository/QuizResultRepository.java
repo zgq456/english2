@@ -21,4 +21,5 @@ import org.springframework.data.repository.CrudRepository;
 import sample.data.jpa.domain.QuizResult;
 
 public interface QuizResultRepository extends CrudRepository<QuizResult, Long> {
+	public void deleteByUserIdAndQuizId(Long userId, Long quizId);
 }

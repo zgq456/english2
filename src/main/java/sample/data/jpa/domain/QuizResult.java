@@ -51,6 +51,14 @@ public class QuizResult implements Serializable {
 	public QuizResult() {
 	}
 
+	public Quiz getQuiz() {
+		return this.quiz;
+	}
+
+	public void setQuiz(Quiz quiz) {
+		this.quiz = quiz;
+	}
+
 	public int getIsRight() {
 		return this.isRight;
 	}

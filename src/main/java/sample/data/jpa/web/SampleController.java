@@ -24,7 +24,10 @@ import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +40,7 @@ import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizWordBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
+import sample.data.jpa.domain.User;
 import sample.data.jpa.domain.Word;
 import sample.data.jpa.service.ArticleServiceImpl;
 import sample.data.jpa.service.CityService;
@@ -55,8 +59,25 @@ public class SampleController {
 	@Autowired
 	private ArticleServiceImpl articleService;
 
+	public User getUser() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		String name = auth.getName();
+		User user = this.userService.getUser(name);
+		return user;
+	}
+
 	public long getUserId() {
-		return 1; // FIXME
+		User user = getUser();
+		return user == null ? -1 : user.getId();
+	}
+
+	@RequestMapping("/getUserName")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getUserName() {
+		User user = getUser();
+		return user == null ? "Guest" : StringUtils.substring(user.getEmail(), 0, 5)
+				+ "...";
 	}
 
 	@RequestMapping("/")
@@ -180,8 +201,8 @@ public class SampleController {
 
 	@RequestMapping("/submitAnswer")
 	@ResponseBody
-	public String submitAnswer(String answerInfo) {
-		this.articleService.submitAnswer(answerInfo, getUserId());
+	public String submitAnswer(String answerInfo, long qId) {
+		this.articleService.submitAnswer(answerInfo, getUserId(), qId);
 		return "1";
 	}
 
@@ -200,6 +221,13 @@ public class SampleController {
 	@ResponseBody
 	public String toggleMarkSen(Long id) {
 		return this.articleService.toggleMarkSen(id, getUserId());
+	}
+
+	@RequestMapping("/myregister")
+	@ResponseBody
+	public String register(String username, String password) {
+		System.out.println("###register###");
+		return this.articleService.register(username, password);
 	}
 
 	@RequestMapping("/uploadFile")

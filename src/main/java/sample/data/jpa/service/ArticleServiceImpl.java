@@ -715,7 +715,13 @@ public class ArticleServiceImpl {
 	/**
 	 * @param answerInfo
 	 */
-	public void submitAnswer(String answerInfo, long userId) {
+	public void submitAnswer(String answerInfo, long userId, long qId) {
+		Quiz quiz = null;
+		if (qId != 0) {
+			this.quizResultRepository.deleteByUserIdAndQuizId(userId, qId);
+			quiz = this.quizRepository.findOne(qId);
+			quiz.setHot(quiz.getHot() + 1);
+		}
 		String[] answers = StringUtils.split(answerInfo, ",");
 		for (int i = 0; i < answers.length; i++) {
 			String[] oneAnswerArr = answers[i].split(":");
@@ -733,8 +739,12 @@ public class ArticleServiceImpl {
 			String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 					.format(new Date());
 			qr.setLastUpt(dateStr);
+			if (quiz != null) {
+				qr.setQuiz(quiz);
+			}
 			this.quizResultRepository.save(qr);
 		}
+
 	}
 
 	/**
@@ -786,4 +796,24 @@ public class ArticleServiceImpl {
 		}
 	}
 
+	/**
+	 * @param username
+	 * @param password
+	 * @return
+	 */
+	public String register(String username, String password) {
+		String result = "";
+		User user = this.userRepository.findByEmail(username);
+		if (user != null) {
+			result = "此用户名已被注册，请更换";
+		}
+		else {
+			user = new User();
+			user.setEmail(username);
+			user.setPassword(password);
+			this.userRepository.save(user);
+			result = "注册成功";
+		}
+		return result;
+	}
 }

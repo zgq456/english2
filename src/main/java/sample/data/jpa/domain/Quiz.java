@@ -38,7 +38,29 @@ public class Quiz implements Serializable {
 	@Column(nullable = true)
 	private String expireDate;
 
+	@Column(nullable = true)
+	private int deleteFlag;
+
+	@Column(nullable = true)
+	private int hot;
+
 	public Quiz() {
+	}
+
+	public int getHot() {
+		return this.hot;
+	}
+
+	public void setHot(int hot) {
+		this.hot = hot;
+	}
+
+	public int getDeleteFlag() {
+		return this.deleteFlag;
+	}
+
+	public void setDeleteFlag(int deleteFlag) {
+		this.deleteFlag = deleteFlag;
 	}
 
 	public Long getId() {

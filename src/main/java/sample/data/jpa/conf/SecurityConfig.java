@@ -60,11 +60,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 		http.authorizeRequests().antMatchers("/assets/**").permitAll();
 		http.authorizeRequests().antMatchers("/login").permitAll();
-		http.authorizeRequests().antMatchers("/**").permitAll();
+		http.authorizeRequests().antMatchers("/myregister").permitAll();
+		// http.authorizeRequests().antMatchers("/**").permitAll();
 
-		// http.authorizeRequests().anyRequest().authenticated().and().formLogin()
-		// .defaultSuccessUrl("/html/index.html", true)
-		// .loginPage("/html/login.html").permitAll();
+		http.authorizeRequests().anyRequest().authenticated().and().formLogin()
+				.defaultSuccessUrl("/html/ajax/ajax.html", false)
+				.loginPage("/html/login.html").permitAll();
 
 	}
 	//

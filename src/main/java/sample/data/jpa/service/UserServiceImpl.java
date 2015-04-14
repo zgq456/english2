@@ -38,4 +38,9 @@ public class UserServiceImpl {
 		User user = this.userRepository.findByEmailAndPassword(email, password);
 		return user;
 	}
+
+	public User getUser(String email) {
+		User user = this.userRepository.findByEmail(email);
+		return user;
+	}
 }

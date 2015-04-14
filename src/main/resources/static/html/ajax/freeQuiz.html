@@ -80,6 +80,7 @@
 <![endif]-->
 <script type="text/javascript">
 	var totalSize = 0;
+	var qid = 0;
 	var ajaxQuizData = null;
 	var scripts = [ null, "../../assets/js/jquery-ui.custom.min.js",
 			"../../assets/js/chosen.jquery.min.js",
@@ -92,7 +93,7 @@
 						//inline scripts related to this page
 						jQuery(function($) {
 
-							var qid = GetArgsFromHref(window.location.href, "qid");
+							qid = GetArgsFromHref(window.location.href, "qid");
 							qid = qid.replace("#page/freeQuiz", "");
 							console.log("qid:" + qid);
 							initQuizInfo(qid);
@@ -165,7 +166,7 @@
 					});
 	
 	function initQuizInfo(qid) {
-		if(qid == "") {
+		if(qid == "" || qid == 0) {
 			$("#quizName").html("自由测试");
 			$("#quizRemark").html("为您量身定制的测试题");
 			document.title = "英语单词小测验--" + $("#quizName").html();
@@ -256,7 +257,8 @@
 			type : "POST",
 			url : "../../submitAnswer",
 			data : {
-				answerInfo : answerInfo
+				answerInfo : answerInfo,
+				qId : qid 
 			},
 			async : true,
 			dataType : "json",

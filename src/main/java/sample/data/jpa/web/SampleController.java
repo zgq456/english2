@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -46,6 +47,7 @@ import sample.data.jpa.service.ArticleServiceImpl;
 import sample.data.jpa.service.CityService;
 import sample.data.jpa.service.JqGridData;
 import sample.data.jpa.service.UserServiceImpl;
+import sample.data.jpa.weixin.WeiXinHandler;
 
 @Controller
 public class SampleController {
@@ -69,6 +71,14 @@ public class SampleController {
 	public long getUserId() {
 		User user = getUser();
 		return user == null ? -1 : user.getId();
+	}
+
+	@RequestMapping("/weixin")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String weixin(HttpServletRequest request, HttpServletResponse response) {
+		WeiXinHandler handler = new WeiXinHandler(request, response);
+		return handler.valid();
 	}
 
 	@RequestMapping("/getUserName")

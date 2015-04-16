@@ -1,3 +1,4 @@
+package net.sourceforge.tess4j.example;
 //package net.sourceforge.tess4j.example;
 //
 //import java.io.File;

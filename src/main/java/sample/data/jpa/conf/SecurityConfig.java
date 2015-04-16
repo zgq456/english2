@@ -47,7 +47,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see org.springframework.security.config.annotation.web.configuration.
 	 * WebSecurityConfigurerAdapter
 	 * #configure(org.springframework.security.config.annotation
@@ -61,6 +61,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 		http.authorizeRequests().antMatchers("/assets/**").permitAll();
 		http.authorizeRequests().antMatchers("/login").permitAll();
+		http.authorizeRequests().antMatchers("/weixin").permitAll();
 		http.authorizeRequests().antMatchers("/myregister").permitAll();
 		// http.authorizeRequests().antMatchers("/**").permitAll();
 

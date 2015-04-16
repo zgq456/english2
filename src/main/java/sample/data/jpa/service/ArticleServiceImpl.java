@@ -835,7 +835,7 @@ public class ArticleServiceImpl {
 		String result = "";
 		User user = this.userRepository.findByEmail(username);
 		if (user != null) {
-			result = "æ­¤ç”¨æˆ·åå·²è¢«æ³¨å†Œï¼Œè¯·æ›´æ¢";
+			result = "此名称已被注册，请更换";
 		}
 		else {
 			user = new User();
@@ -860,7 +860,7 @@ public class ArticleServiceImpl {
 			uafa.setLastUpt(dateStr);
 			this.userArticleForkAssoRepository.save(uafa);
 
-			result = "æ³¨å†ŒæˆåŠŸ";
+			result = "注册成功";
 		}
 		return result;
 	}

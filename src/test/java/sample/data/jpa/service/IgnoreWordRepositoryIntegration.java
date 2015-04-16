@@ -93,7 +93,7 @@ import edu.stanford.nlp.process.PTBTokenizer;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = SampleDataJpaApplication.class)
-public class WordRepositoryIntegrationTests {
+public class IgnoreWordRepositoryIntegration {
 
 	@Autowired
 	WordRepository wordRepository;
@@ -176,7 +176,7 @@ public class WordRepositoryIntegrationTests {
 						word.setPron(pronStr);
 						word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 								.format(new Date()));
-						WordRepositoryIntegrationTests.this.wordRepository.save(word);
+						IgnoreWordRepositoryIntegration.this.wordRepository.save(word);
 						// System.out.println(word.getExplain2());
 					}
 				}
@@ -444,7 +444,7 @@ public class WordRepositoryIntegrationTests {
 
 	@Test
 	public void parseExample() throws IOException, SAXException, TikaException {
-		InputStream stream = WordRepositoryIntegrationTests.class
+		InputStream stream = IgnoreWordRepositoryIntegration.class
 				.getResourceAsStream("http://tika.apache.org/1.7/examples.html");
 		AutoDetectParser parser = new AutoDetectParser();
 		BodyContentHandler handler = new BodyContentHandler();

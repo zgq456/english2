@@ -27,9 +27,7 @@
 
 <!-- ajax layout which only needs content area -->
 <div class="page-header">
-	<h1>
-		创建一组测试 
-	</h1>
+	<h1>创建一组测试</h1>
 </div>
 <!-- /.page-header -->
 
@@ -42,7 +40,7 @@
 					for="form-field-1"> Name</label>
 
 				<div class="col-sm-9">
-					<input type="text" id="name"  name="name" placeholder=""
+					<input type="text" id="name" name="name" placeholder=""
 						class="col-xs-10 col-sm-5" />
 				</div>
 
@@ -98,15 +96,35 @@
 	<!-- /.col -->
 
 	<div id="quesTemplateDiv" style="display: none">
-		<div style="margin: 5px;">
+		<div style="margin: 5px; border: 3px dashed #ccc; margin-top: 5px">
 			<table>
 				<tr>
 					<td>Word <span name='indexSpan'>$#{Index}</span></td>
-					<td><input type="text" name="word" /></td>
+					<td>
+						<input type="text" name="word" onblur="getWordExplain(this)" />
+						<div name="wordExplainSpan"  ></div>
+						<div style="display: none">
+							词义补充: <input type="text" name="wordExplainInput" /> 
+							<button class="btn btn-info" type="button" onclick="saveWordExplain(this)">
+								<i class="ace-icon fa fa-check bigger-110"></i> 保存
+							</button>
+						</div>
+					</td>
 				</tr>
 				<tr>
 					<td>Sentence</td>
 					<td><textarea name="sentence" /></td>
+				</tr>
+				<tr>
+					<td>Comment</td>
+					<td><textarea name="comment" /></td>
+				</tr>
+				<tr>
+					<td colspan="2" align="center">
+						<button class="btn btn-info" type="button" onclick="removeQuiz(this)">
+							<i class="ace-icon fa fa-check bigger-110"></i> Remove
+						</button>
+					</td>
 				</tr>
 			</table>
 		</div>
@@ -131,39 +149,173 @@
 
 <script type="text/javascript">
 	var quesIndex = 1;
+	
+	function saveWordExplain(obj) {
+		var wordValue = $($(obj).parent().parent().find("input")[0]).val();
+		console.log("wordValue:" + wordValue);
+		var explainValue = $($(obj).parent().parent().find("input")[1]).val();
+		if(explainValue == "") {
+			alert("词义不能为空");
+			return;
+		}
+		$.ajax({
+			type : "POST",
+			url : "../../saveWordExplain",
+			data : {
+				wordValue : wordValue,
+				explainValue : explainValue
+			},
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				alert("保存词义成功");
+				$($(obj).parent().parent().find("div")[0]).html(explainValue);
+				
+			},
+			error : function(data) {
+				alert("set error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function getWordExplain(obj) {
+		var wordValue = $(obj).val().trim();
+		if(wordValue != "") {
+			$.ajax({
+				type : "POST",
+				url : "../../getWordExplain",
+				data : {
+					wordValue : wordValue
+				},
+				async : true,
+				dataType : "text",
+				success : function(data) {
+					//alert("explain:" + data);
+					$(obj).next().html(data);
+					var nextDiv = $(obj).next().next(); 
+					nextDiv.find("input").val(data);
+					if(data == "") {
+						nextDiv.show();
+					} else {
+						nextDiv.hide();
+					}
+				},
+				error : function(data) {
+					alert("set error, please contact administrator");
+				}
+
+			});
+		}
+	}
+	
 	function addQues() {
 		//console.log("addQues");
 		//console.log($("#quesTemplateDiv").html());
-		
-		$("#questionsDiv").append($("#quesTemplateDiv").html().replace("$#{Index}", quesIndex));
+
+		$("#questionsDiv").append(
+				$("#quesTemplateDiv").html().replace("$#{Index}", quesIndex));
 		quesIndex++;
+	}
+	
+	function removeQuiz(obj) {
+		$(obj).parent().parent().parent().parent().parent().remove();
+		
+		var allIndexSpan = $("span[name='indexSpan']");
+		for(var i = 0; i < allIndexSpan.length - 1; i++) {
+			$(allIndexSpan[i]).html(i + 1);
+		}
+		quesIndex--;
+		
 	}
 
 	function resetForm() {
 		console.log("resetForm");
 		location.reload();
 	}
-	
+
 	function addQuiz2() {
 		var wordArr = "";
 		var senArr = "";
-		
+		var commArr = "";
+
 		var allWords = $("input[name='word']");
+		var allWordExplains = $("div[name='wordExplainSpan']");
 		var allSens = $("textarea[name='sentence']");
+		var allComms = $("textarea[name='comment']");
 		
-		for(var i = 0; i < allWords.length -1; i++) {
-			wordArr += $(allWords[i]).val();
-			if(i != allWords.length - 1) {
+		if($("#name").val().trim() == "") {
+			alert("测试名称不能为空");
+			return;
+		}
+		
+
+		for (var i = 0; i < allWords.length - 1; i++) {
+			var oneWord = $(allWords[i]).val();
+			if(oneWord.trim().length <= 2) {
+				alert("第" + (i + 1) + "题的单词里为空或太简单,请更改再试");
+				return;
+			}
+			if(oneWord.trim().indexOf(" ") >= 0) {
+				alert("第" + (i + 1) + "题的单词里不能有空格，请更改再试");
+				return;
+			}
+			
+			if($(allWordExplains[i]).html() == "") {
+				alert("第" + (i + 1) + "题的单词" + oneWord + "在词库中没有中文词义解释，请帮忙补充并保存");
+				return;
+			}
+			
+			wordArr += oneWord;
+			if (i != allWords.length - 1) {
 				wordArr += "######";
 			}
 		}
-		for(var i = 0; i < allSens.length - 1; i++) {
-			senArr += $(allSens[i]).val();
-			if(i != allSens.length - 1) {
+		for (var i = 0; i < allSens.length - 1; i++) {
+			var oneSen = $(allSens[i]).val(); 
+			senArr += oneSen;
+			if(oneSen.trim().length == 0) {
+				alert("第" + (i + 1) + "题的句子里不能为空");
+				return;
+			}
+			
+			var hasExpectWord = false;
+			var senWordArr = oneSen.split(" ");	
+			for(var j = 0; j < senWordArr.length; j++) {
+				//console.log(senWordArr[j].trim().toUpperCase() + "---" + $(allWords[i]).val().trim().toUpperCase());
+				senWordArr[j] = senWordArr[j].replace(",", "");
+				senWordArr[j] = senWordArr[j].replace(".", "");
+				senWordArr[j] = senWordArr[j].replace("!", "");
+				senWordArr[j] = senWordArr[j].replace("?", "");
+				senWordArr[j] = senWordArr[j].replace("-", "");
+				if(senWordArr[j].trim().toUpperCase() == $(allWords[i]).val().trim().toUpperCase()) {
+					hasExpectWord = true;
+					break;
+				}
+			}
+			
+			if(!hasExpectWord) {
+				alert("第" + (i + 1) + "题的句子里并没有完全匹配的单词，请更改再试");
+				return;
+			}
+			
+			
+			
+			if (i != allSens.length - 1) {
 				senArr += "######";
 			}
 		}
-		
+		for (var i = 0; i < allComms.length - 1; i++) {
+			if ($(allComms[i]).val() == "") {
+				commArr += "  ";
+			} else {
+				commArr += $(allComms[i]).val();
+			}
+			if (i != allComms.length - 1) {
+				commArr += "######";
+			}
+		}
+
 		$.ajax({
 			type : "POST",
 			url : "../../addOrUpdateQuiz",
@@ -172,13 +324,14 @@
 				name : $("#name").val(),
 				remark : $("#remark").val(),
 				wordArr : wordArr,
-				senArr : senArr
+				senArr : senArr,
+				commArr : commArr
 			},
 			async : true,
 			dataType : "text",
 			success : function(data) {
 				//console.log("data:" + data);
-				alert("upload success");
+				alert("创建成功");
 				window.location = "ajax.html#page/quizs";
 			}
 
@@ -578,3 +731,4 @@
 		});
 	});
 </script>
+

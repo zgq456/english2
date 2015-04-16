@@ -31,9 +31,10 @@ public class QuizWordBean {
 	private String answer;
 	private String sentence;
 	private int mark;
+	private String comment;
 
 	public QuizWordBean(long wordId, String value, String explain2, int rank,
-			String sentence, int mark) {
+			String sentence, int mark, String comment) {
 		super();
 		this.wordId = wordId;
 		this.value = value;
@@ -41,6 +42,21 @@ public class QuizWordBean {
 		this.rank = rank;
 		this.sentence = sentence;
 		this.mark = mark;
+		this.comment = comment;
+	}
+
+	/**
+	 * @return the comment
+	 */
+	public String getComment() {
+		return this.comment;
+	}
+
+	/**
+	 * @param comment the comment to set
+	 */
+	public void setComment(String comment) {
+		this.comment = comment;
 	}
 
 	public int getMark() {
@@ -109,7 +125,7 @@ public class QuizWordBean {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see java.lang.Object#toString()
 	 */
 	@Override

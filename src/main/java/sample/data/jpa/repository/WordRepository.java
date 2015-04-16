@@ -59,7 +59,7 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
 			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id "
 			+ "	group by w.id "
-			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id order by "
+			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id order by "
 			+ "case when :sort = 'id asc' then id_sort end asc, "
 			+ "case when :sort = 'id desc' then id_sort end desc, "
 			+ "case when :sort = 'pron asc' then pron_sort end asc, "

@@ -118,7 +118,7 @@ public class ArticleServiceImpl {
 			QuizContent qc = quizContentList.get(i);
 			QuizWordBean qwb = new QuizWordBean(qc.getWord().getId(), qc.getWord()
 					.getValue(), qc.getWord().getExplain2(), 5, qc.getSentence()
-					.getContent(), qc.getWord().getMark());
+					.getContent(), qc.getWord().getMark(), qc.getComment());
 			results.add(qwb);
 		}
 
@@ -141,7 +141,7 @@ public class ArticleServiceImpl {
 							throws SQLException {
 						return new QuizWordBean(rs.getLong("word_id"), rs
 								.getString("value"), rs.getString("explain2"), rs
-								.getInt("rank"), "", rs.getInt("mark"));
+								.getInt("rank"), "", rs.getInt("mark"), "");
 					}
 				});
 
@@ -159,6 +159,10 @@ public class ArticleServiceImpl {
 			if (mode == MyConstants.FREE_QUIZ) {
 				senList = this.sentenceRepository.findByArticleUserIdSubGrid(userId, "% "
 						+ word.getValue().toLowerCase() + " %");
+				if (senList.isEmpty()) {
+					senList = this.sentenceRepository.findInDummyArticle("% "
+							+ word.getValue().toLowerCase() + " %");
+				}
 			}
 			int blankCount = 0;
 			String answer = "";
@@ -283,7 +287,7 @@ public class ArticleServiceImpl {
 			content = content.replaceAll("(\r)?\n", " ");
 			content = content.replace("-LRB-", "(");
 			content = content.replace("-RRB-", ")");
-			content = content.replace("¡¯", "'");
+			content = content.replace("Â¡Â¯", "'");
 			System.out.println("###content:" + content);
 
 			File tempFile = new File(uploadDir, System.currentTimeMillis() + ".txt");
@@ -336,7 +340,7 @@ public class ArticleServiceImpl {
 			String lowCaseWord = oneWord.toString().toLowerCase();
 			// TODO MARK WORD -1 = ignore
 			if ("...".equals(lowCaseWord) || ".".equals(lowCaseWord)
-					|| ",".equals(lowCaseWord) || "â–&nbsp;".equals(lowCaseWord)
+					|| ",".equals(lowCaseWord) || "Ã¢â€“&nbsp;".equals(lowCaseWord)
 					|| !lowCaseWord.matches("^[a-zA-Z\\-]*")) {
 				// System.out.println("ignore:" + lowCaseWord);
 			}
@@ -756,7 +760,7 @@ public class ArticleServiceImpl {
 	 * @param senArr2
 	 */
 	public void saveOrUpdateQuiz(String id, String name, String remark, String oper,
-			String[] wordArr2, String[] senArr2, long userId) {
+			String[] wordArr2, String[] senArr2, String[] commArr2, long userId) {
 		if ("add".equals(oper)) {
 			Quiz quiz = new Quiz();
 			quiz.setName(name);
@@ -770,12 +774,16 @@ public class ArticleServiceImpl {
 				QuizContent qc = new QuizContent();
 
 				Sentence sentence = new Sentence();
-				sentence.setContent(senArr2[i]);
+				String oneSenStr = senArr2[i];
+				oneSenStr = addSpaceForPunctuate(oneSenStr);
+				sentence.setContent(" " + oneSenStr + " ");
 				Article article = new Article();
 				article.setId(-1L); // DUMMY article
 				sentence.setArticle(article);
 				this.sentenceRepository.save(sentence);
 				qc.setSentence(sentence);
+
+				qc.setComment(StringUtils.trim(commArr2[i]));
 
 				List<Word> wordList = this.wordRepository.findByLowValue(wordArr2[i]
 						.toLowerCase());
@@ -797,6 +805,28 @@ public class ArticleServiceImpl {
 	}
 
 	/**
+	 * @param str
+	 * @return
+	 */
+	private String addSpaceForPunctuate(String str) {
+		str = StringUtils.replace(str, ",", " , ");
+		str = StringUtils.replace(str, ".", " . ");
+		str = StringUtils.replace(str, "!", " ! ");
+		str = StringUtils.replace(str, "?", " ? ");
+		str = StringUtils.replace(str, "-", " - ");
+		return str;
+	}
+
+	private String removeSpaceForPunctuate(String str) {
+		str = StringUtils.replace(str, " , ", ",");
+		str = StringUtils.replace(str, " . ", ".");
+		str = StringUtils.replace(str, " ! ", "!");
+		str = StringUtils.replace(str, " ? ", "?");
+		str = StringUtils.replace(str, " - ", "-");
+		return str;
+	}
+
+	/**
 	 * @param username
 	 * @param password
 	 * @return
@@ -805,14 +835,69 @@ public class ArticleServiceImpl {
 		String result = "";
 		User user = this.userRepository.findByEmail(username);
 		if (user != null) {
-			result = "此用户名已被注册，请更换";
+			result = "æ­¤ç”¨æˆ·åå·²è¢«æ³¨å†Œï¼Œè¯·æ›´æ¢";
 		}
 		else {
 			user = new User();
 			user.setEmail(username);
 			user.setPassword(password);
+			String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+					.format(new Date());
+			user.setLastUpt(dateStr);
 			this.userRepository.save(user);
-			result = "注册成功";
+
+			long dummyId = -1L;
+			Article article = this.articleRepository.findOne(dummyId);
+			if (article == null) {
+				article = new Article();
+				article.setId(dummyId);
+				article.setName("dummy");
+				this.articleRepository.save(article);
+			}
+			UserArticleForkAsso uafa = new UserArticleForkAsso();
+			uafa.setArticle(article);
+			uafa.setUser(user);
+			uafa.setLastUpt(dateStr);
+			this.userArticleForkAssoRepository.save(uafa);
+
+			result = "æ³¨å†ŒæˆåŠŸ";
+		}
+		return result;
+	}
+
+	/**
+	 * @param wordValue
+	 * @return
+	 */
+	public String getWordExplain(String wordValue) {
+		String wordExplain = "";
+		List<Word> wordList = this.wordRepository.findByLowValue(StringUtils
+				.lowerCase(wordValue));
+		if (wordList.isEmpty()) {
+			wordExplain = "";
+		}
+		else {
+			wordExplain = wordList.get(0).getExplain2();
+		}
+		return wordExplain;
+	}
+
+	public String saveWordExplain(String wordValue, String explainValue) {
+		String result = "";
+		List<Word> wordList = this.wordRepository.findByLowValue(StringUtils
+				.lowerCase(wordValue));
+		Word word = null;
+		if (wordList.isEmpty()) {
+			word = new Word();
+			word.setValue(wordValue);
+			word.setLowValue(StringUtils.lowerCase(wordValue));
+			word.setExplain(explainValue);
+			this.wordRepository.save(word);
+		}
+		else {
+			word = wordList.get(0);
+			word.setExplain(explainValue);
+			this.wordRepository.save(word);
 		}
 		return result;
 	}

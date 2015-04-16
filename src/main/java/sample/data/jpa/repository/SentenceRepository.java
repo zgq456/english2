@@ -48,4 +48,7 @@ public interface SentenceRepository extends CrudRepository<Sentence, Long> {
 
 	@Query("select count(a) from Sentence a where a.article.user.id = :id")
 	public Long getUserTotalCount(@Param("id") Long id);
+
+	@Query(value = "select id, content, create_date, last_upt, article_id, 1 temp_flag  from sentence where article_id = -1 and lower(content) like :wordStr", nativeQuery = true)
+	List<Sentence> findInDummyArticle(@Param("wordStr") String word);
 }

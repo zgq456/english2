@@ -166,11 +166,12 @@ public class SampleController {
 	@RequestMapping("/addOrUpdateQuiz")
 	@ResponseBody
 	public String addOrUpdateQuiz(String id, String name, String remark, String oper,
-			String wordArr, String senArr) {
+			String wordArr, String senArr, String commArr) {
 		String[] wordArr2 = wordArr.split("######");
 		String[] senArr2 = senArr.split("######");
+		String[] commArr2 = commArr.split("######");
 		this.articleService.saveOrUpdateQuiz(id, name, remark, oper, wordArr2, senArr2,
-				getUserId());
+				commArr2, getUserId());
 
 		// Article article = new Article();
 		// article.setName(name);
@@ -248,7 +249,7 @@ public class SampleController {
 				throw new UnsupportedOperationException("Auto-generated method stub", e);
 			}
 			// store the bytes somewhere
-			// 在这里就可以对file进行处理了，可以根据自己的需求把它存到数据库或者服务器的某个文件夹
+			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥æ&nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤¹
 
 		}
 		else {
@@ -271,6 +272,19 @@ public class SampleController {
 		System.out.println("##invoke getWordListForQuiz  2  ##");
 		List<QuizWordBean> quizWordBeanList = this.articleService.getWordListForQuiz2(id);
 		return quizWordBeanList;
+	}
+
+	@RequestMapping("/getWordExplain")
+	@ResponseBody
+	public String getWordExplain(String wordValue) {
+		return this.articleService.getWordExplain(wordValue);
+	}
+
+	@RequestMapping("/saveWordExplain")
+	@ResponseBody
+	public String saveWordExplain(String wordValue, String explainValue) {
+		return this.articleService.saveWordExplain(wordValue, explainValue);
+
 	}
 	// String name = "test_" + new Date() + ".txt";
 	// if (!file.isEmpty()) {

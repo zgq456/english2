@@ -109,12 +109,10 @@
 								// 				{name:'remark',index:'remark', width:150, sortable:false,editable: true,edittype:"textarea", editoptions:{rows:"2",cols:"10"}} ,
 								// 				{name:'author.name',index:'author.name', width:150, sortable:true,editable: false} ,
 								{
-									name : 'lastUpt',
-									index : 'lastUpt',
-									width : 90,
-									editable : false,
-									sorttype : "date",
-									unformat : pickDate
+									name : 'act',
+									index : 'act',
+									sortable : false,
+									width : 90
 								} ],
 
 								viewrecords : true,
@@ -138,6 +136,24 @@
 										enableTooltips(table);
 									}, 0);
 								},
+								
+								gridComplete : function() {
+									var ids = jQuery("#grid-table")
+											.jqGrid('getDataIDs');
+									// alert("ids:" + ids);
+									for (var i = 0; i < ids.length; i++) {
+										var cl = ids[i];
+										viewBtnHtml = "<input  type='button' value='查看' onclick=\"viewQuiz('"
+												+ cl + "');\"  />";
+										jQuery("#grid-table").jqGrid(
+												'setRowData',
+												ids[i],
+												{
+													act : viewBtnHtml
+												});
+									}
+								},
+								
 
 								editurl : "/addOrUpdateArticle",//nothing is saved
 								caption : "测验列表"
@@ -524,7 +540,7 @@
 									container : 'body'
 								});
 							}
-
+						
 							//var selr = jQuery(grid_selector).jqGrid('getGridParam','selrow');
 
 							$(document).on('ajaxloadstart', function(e) {
@@ -533,4 +549,12 @@
 							});
 						});
 					});
+	
+	
+	function viewQuiz(qId) {
+		//console.log("qId:" + qId);
+		window.location = "ajax.html?qid=" + qId + "#page/freeQuiz";
+	}
+
 </script>
+

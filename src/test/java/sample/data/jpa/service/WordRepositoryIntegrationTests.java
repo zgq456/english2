@@ -211,7 +211,7 @@ public class WordRepositoryIntegrationTests {
 		String pronStr = "";
 		// System.out.println(pageSource);
 		String explain = "";
-		if (pageSource.contains("您要查找的是不是")) {
+		if (pageSource.contains("æ‚¨è¦æŸ¥æ‰¾çš„æ˜¯ä¸æ˜¯")) {
 			explain = "UNKNOWN";
 		}
 		else {
@@ -264,7 +264,7 @@ public class WordRepositoryIntegrationTests {
 			String pronStr = "";
 			// System.out.println(pageSource);
 			String explain = "";
-			if (pageSource.contains("您要查找的是不是")) {
+			if (pageSource.contains("æ‚¨è¦æŸ¥æ‰¾çš„æ˜¯ä¸æ˜¯")) {
 				explain = "UNKNOWN";
 			}
 			else {
@@ -487,7 +487,7 @@ public class WordRepositoryIntegrationTests {
 		// String pageSource = driver.getPageSource();
 		// // System.out.println(pageSource);
 		// String pronStr = "";
-		// if (pageSource.contains("您要查找的是不是")) {
+		// if (pageSource.contains("æ‚¨è¦æŸ¥æ‰¾çš„æ˜¯ä¸æ˜¯")) {
 		// pronStr = "UNKNOWN";
 		// }
 		// else {
@@ -523,6 +523,19 @@ public class WordRepositoryIntegrationTests {
 			label = (CoreLabel) ptbt.next();
 			System.out.println("###label:" + label);
 		}
+	}
+
+	@Test
+	public void createArticle0() throws Exception {
+		Article article = new Article();
+		article.setId(-3L); // useless
+		article.setName("-3.pdf");
+		// article.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new
+		// Date()));
+		// article.setRemark("my comments ..........end");
+		// article.setOpenFlag("Yes");
+		// article.setType("doc");
+		this.articleRepository.save(article);
 	}
 
 	@Test
@@ -665,6 +678,17 @@ public class WordRepositoryIntegrationTests {
 		long userId = 1L;
 		List<Sentence> senList = this.sentenceRepository.findByArticleUserIdSubGrid(
 				userId, "% able %");
+		System.out.println("senList:" + senList.size());
+		for (int i = 0; i < senList.size(); i++) {
+			Sentence sen = senList.get(i);
+			System.out.println("content" + i + ":" + sen.getContent() + " usefulFlag:"
+					+ sen.getTempFlag());
+		}
+	}
+
+	@Test
+	public void testSen3() throws Exception {
+		List<Sentence> senList = this.sentenceRepository.findInDummyArticle("% get %");
 		System.out.println("senList:" + senList.size());
 		for (int i = 0; i < senList.size(); i++) {
 			Sentence sen = senList.get(i);

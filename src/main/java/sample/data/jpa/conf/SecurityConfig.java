@@ -47,7 +47,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.springframework.security.config.annotation.web.configuration.
 	 * WebSecurityConfigurerAdapter
 	 * #configure(org.springframework.security.config.annotation
@@ -57,6 +57,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 
 		http.csrf().disable();
+		http.headers().cacheControl().disable();
 
 		http.authorizeRequests().antMatchers("/assets/**").permitAll();
 		http.authorizeRequests().antMatchers("/login").permitAll();

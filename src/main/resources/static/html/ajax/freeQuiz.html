@@ -116,12 +116,17 @@
 									totalSize = data.length;
 									for(var i = 0; i < data.length; i++) {
 										var oneWordHtml = "";
-										oneWordHtml += "<div class='swiper-slide'  id='quizSpan" + i  + "'><div class='title2'><p>";
+										oneWordHtml += "<div style='border: 3px dashed #ccc;margin-top:5px;'   id='quizSpan" + i  + "'><div class='title2'><p>";
 										oneWordHtml += "     <b>" + (i + 1) + "/" + totalSize + "</b>." + data[i].sentence;
 										oneWordHtml += "     </p>";
 										oneWordHtml += "     <p>";
 										oneWordHtml += "     " + data[i].explain2;
 										oneWordHtml += "     </p>";
+										if(data[i].comment != "") {
+											oneWordHtml += "     <p>";
+											oneWordHtml += "     备注:" + data[i].comment;
+											oneWordHtml += "     </p>";
+										}
 										oneWordHtml += "     <span style='display:none;' id='answerSpan" + i  + "'>" + data[i].answer + "</span>";
 										oneWordHtml += "     <span style='display:none;' id='resultSpan" + i  + "'><img src='../../assets/images/icon_bad.gif' /></span>";
 										oneWordHtml += "     <span style='display:none;' id='wordIdSpan" + i + "'>" + data[i].wordId  + "</span>";
@@ -253,6 +258,10 @@
 		$("#prevBtn").hide();
 		$("#nextBtn").hide();
 		
+		if(qid == "") {
+			qid = 0;
+		}
+		
 		$.ajax({
 			type : "POST",
 			url : "../../submitAnswer",
@@ -330,4 +339,5 @@
 	}
 	
 </script>
+
 

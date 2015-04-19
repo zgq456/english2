@@ -16,6 +16,7 @@
 .title3 {
 	font-size: 20px;
 	cursor: pointer;
+	color: red;
 }
 </style>
 
@@ -55,14 +56,27 @@
 						
 					</table>
 				</div>
+				<div  style="margin-top: 10px;" >
+					<span class="title2">排名榜</span>
+					<div id="rateDiv" class="title2">
+					</div>
+				</div>
 			</div>
 			 <div id="contentDiv">
-				<div class="title2">Slides are loading</div>
+				<div class="title2">Slides are loading...</div>
 			</div>
 			 <div >
 				<button class="btn btn-info" type="button" onclick="checkAnswers()">
 						<i class="ace-icon fa fa-check bigger-110"></i>
 						提交
+				</button>
+				&nbsp;
+				<button class="btn btn-info" type="button" onclick="newOneFreeQuiz()">
+						再来一组
+				</button>
+				&nbsp;
+				<button class="btn btn-info" type="button" onclick="backToList()">
+						返回
 				</button>
 			</div>
 			<div id='resultDiv'></div>
@@ -85,7 +99,7 @@
 	var scripts = [ null, "../../assets/js/jquery-ui.custom.min.js",
 			"../../assets/js/chosen.jquery.min.js",
 			"../../assets/js/jquery.maskedinput.min.js",
-			"../../assets/js/swiper3.06.min.js",
+			"../../assets/js/bootbox.min.js",
 			  null ]
 	ace.load_ajax_scripts(
 					scripts,
@@ -118,11 +132,16 @@
 										var oneWordHtml = "";
 										oneWordHtml += "<div style='border: 3px dashed #ccc;margin-top:5px;'   id='quizSpan" + i  + "'><div class='title2'><p>";
 										oneWordHtml += "     <b>" + (i + 1) + "/" + totalSize + "</b>." + data[i].sentence;
+										//oneWordHtml += "     <i class='ace-icon glyphicon glyphicon-star-empty'></i>";
+										oneWordHtml += "     <span class='title3' onclick='toggleForkSen(this, " + data[i].senId + ")'>&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i></span>";
 										oneWordHtml += "     </p>";
 										oneWordHtml += "     <p>";
-										oneWordHtml += "     " + data[i].explain2;
+										oneWordHtml += "     " + data[i].explain2 + "&nbsp;"
+										if(qid == "") {
+											oneWordHtml +=           '<button class="btn btn-info" type="button" onclick="ignoreWord(this, ' + data[i].wordId + ',' + i + ')">忽略</button>' ;
+										}
 										oneWordHtml += "     </p>";
-										if(data[i].comment != "") {
+										if(data[i].comment != "" && data[i].comment != null) {
 											oneWordHtml += "     <p>";
 											oneWordHtml += "     备注:" + data[i].comment;
 											oneWordHtml += "     </p>";
@@ -170,6 +189,32 @@
 						});
 					});
 	
+	function ignoreWord(btnObj, wordId, index) {
+		
+		bootbox.confirm("确定要永久忽略这个单词(" + $("#answerSpan" + index).html() + ")吗？", function(result) {
+			if(result) {
+				$.ajax({
+					type : "POST",
+					url : "../../ignoreWord",
+					data : {
+						wordId : wordId
+					},
+					async : true,
+					dataType : "text",
+					success : function(data) {
+						$(btnObj).hide();
+						$("#input" + index).val($("#answerSpan" + index).html());
+						$("#input" + index).attr("readonly", true);
+					},
+					error : function(data) {
+						alert("submit result error, please contact administrator");
+					}
+		
+				});
+			}
+		});
+	}
+	
 	function initQuizInfo(qid) {
 		if(qid == "" || qid == 0) {
 			$("#quizName").html("自由测试");
@@ -196,6 +241,42 @@
 			}
 
 		});
+			
+		$.ajax({
+			type : "POST",
+			url : "../../getRateListForQuiz",
+			data : {
+				qId : qid
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				var rateHtml = '<table  class="table table-striped table-bordered table-hover">';
+				rateHtml += "<tr>"
+				rateHtml += "	<th>User</th>"
+				rateHtml += "	<th>Rate</th>"
+				rateHtml += "</tr>"
+				for(var i = 0; i < data.length; i++) {
+					rateHtml += "<tr>"
+					rateHtml += "	<td>"
+					rateHtml += 		data[i].email;
+					rateHtml += "	</td>"
+					rateHtml += "	<td>"
+					rateHtml += 		data[i].rate;
+					rateHtml += "	</td>"
+					rateHtml += "</tr>"
+				}
+				rateHtml += "</table>";
+				//alert("rateHtml:" + rateHtml);
+				$("#rateDiv").html(rateHtml);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+		
+		
 	}
 	
 	function checkAnswer(inputIndex, blankCount) {
@@ -214,6 +295,14 @@
 			$("#resultSpan" + inputIndex).show();
 			
 		}
+	}
+	
+	function newOneFreeQuiz() {
+		window.location.reload();
+	}
+	
+	function backToList() {
+		window.location = "ajax.html#page/quizs";
 	}
 	
 	function checkAnswers() {
@@ -292,6 +381,39 @@
 			url : "../../toggleWordFork",
 			data : {
 				wordId : wordId,
+				forkValue : forkValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data == "0") {
+					alert("please login first");
+				}
+				else {
+					if(forkValue == 0) {
+						$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+					} else {
+						$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+					}					
+				}
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function toggleForkSen(spanObj, senId) {
+		console.log("toggleForkSen senId:" + senId);
+		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 5 : 0; 
+		$.ajax({
+			type : "POST",
+			url : "../../toggleForkSen",
+			data : {
+				senId : senId,
 				forkValue : forkValue
 			},
 			async : true,

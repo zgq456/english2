@@ -143,12 +143,25 @@
 		<button class="btn" type="button" onclick="resetForm()">
 			<i class="ace-icon fa fa-undo bigger-110"></i> Reset
 		</button>
+		
+		&nbsp; &nbsp; &nbsp;
+		<button class="btn btn-info" type="button" onclick="backToList()">
+				返回
+		</button>
 	</div>
 </div>
 <!-- page specific plugin scripts -->
 
 <script type="text/javascript">
 	var quesIndex = 1;
+	
+	function backToList() {
+		bootbox.confirm("确定要返回吗?", function(result) {
+			if(result) {
+				window.location = "ajax.html#page/quizs";
+			}
+		});
+	}
 	
 	function saveWordExplain(obj) {
 		var wordValue = $($(obj).parent().parent().find("input")[0]).val();
@@ -353,6 +366,7 @@
 			"../../assets/js/jquery.easypiechart.min.js",
 			"../../assets/js/jquery.gritter.min.js",
 			"../../assets/js/spin.min.js",
+			"../../assets/js/bootbox.min.js",
 			"../../assets/js/jquery.autosize.min.js", null ]
 	ace
 			.load_ajax_scripts(

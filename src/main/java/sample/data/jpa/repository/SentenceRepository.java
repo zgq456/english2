@@ -29,24 +29,30 @@ import sample.data.jpa.domain.Sentence;
 
 public interface SentenceRepository extends CrudRepository<Sentence, Long> {
 	// @Query("select a from Sentence a left join UserSenAsso usa where a.article.user.id = :id and a.id = usa.sen.id and uas.user.id = :id")
-	@Query("select new sample.data.jpa.domain.SenSummary(a, usa.usefulFlag) from Sentence a left join a.users usa where a.article.user.id = :id")
+	@Query("select new sample.data.jpa.domain.SenSummary(a, usa.usefulFlag) from Sentence a left join a.users usa where a.article.user.id = :id and a.article.deleteFlag != 1 and a.article.hideFlag = 'No'")
 	Page<SenSummary> findByArticleUserId(@Param("id") Long userId, Pageable pageable);
 
-	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id"
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
 			+ " and a.user_id = :id and lower(s.content) like :wordStr ) as t1"
 			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
 			+ " order by useful_flag desc, t1.last_upt desc limit 0, 50", nativeQuery = true)
 	List<Sentence> findByArticleUserIdSubGrid(@Param("id") Long userId,
 			@Param("wordStr") String word);
 
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1  "
+			+ " and a.user_id = :id and lower(s.content) like :wordStr ) as t1"
+			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
+			+ " order by useful_flag desc, t1.last_upt desc limit 0, 50", nativeQuery = true)
+	List<Sentence> findForQuiz(@Param("id") Long userId, @Param("wordStr") String word);
+
 	// @Query("select a from Sentence a left join UserSenAsso usa where a.article.user.id = :id and a.id = usa.sen.id and uas.user.id = :id")
 	// @Query("select a from Sentence a left join a.users usa where a.article.user.id = :id")
-	@Query("select new sample.data.jpa.domain.SenSummary(a, usa.usefulFlag) from Sentence a left join a.users usa where a.article.user.id = :id")
+	@Query("select new sample.data.jpa.domain.SenSummary(a, usa.usefulFlag) from Sentence a left join a.users usa where a.article.user.id = :id and a.article.deleteFlag != 1 and a.article.hideFlag = 'No'")
 	//
 	// and a.id = usa.sen.id and uas.user.id = :id
 	List<SenSummary> findByArticleUserId(@Param("id") Long userId);
 
-	@Query("select count(a) from Sentence a where a.article.user.id = :id")
+	@Query("select count(a) from Sentence a where a.article.user.id = :id and a.article.deleteFlag != 1 and a.article.hideFlag = 'No'")
 	public Long getUserTotalCount(@Param("id") Long id);
 
 	@Query(value = "select id, content, create_date, last_upt, article_id, 1 temp_flag  from sentence where article_id = -1 and lower(content) like :wordStr", nativeQuery = true)

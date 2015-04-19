@@ -130,7 +130,7 @@
 			//datatype: "local",
 			datatype : "json",
 			url : "../../getWordList",
-			height: 450,
+			height: 'auto',
 			colNames:[' ', 'ID','Content','Pron', 'Hit', 'Rank', 'Explain'],
 			colModel:[
 				{name:'myac',index:'', width:80, fixed:true, sortable:false, resize:false,
@@ -160,8 +160,8 @@
 			], 
 	
 			viewrecords : true,
-			rowNum:10,
-			rowList:[10,20,30],
+			rowNum:30,
+			rowList:[10,20,30,50],
 			pager : pager_selector,
 			altRows: true,
 			//toppager: true,

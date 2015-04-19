@@ -38,6 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.Quiz;
+import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
@@ -127,6 +128,12 @@ public class SampleController {
 		return this.articleService.getQuiz(qId);
 	}
 
+	@RequestMapping("/enhanceWord")
+	public String enhanceWord() {
+		this.articleService.enhanceWord();
+		return "done";
+	}
+
 	@RequestMapping("/getSenList")
 	@ResponseBody
 	@Transactional(readOnly = true)
@@ -161,11 +168,19 @@ public class SampleController {
 	@RequestMapping("/addOrUpdateArticle")
 	@ResponseBody
 	public String addOrUpdateArticle(String id, String name, String openFlag,
-			String remark, String type, String url, String oper, String stringText) {
+			String hideFlag, String remark, String type, String url, String oper,
+			String stringText) {
 		Article article = new Article();
 		article.setName(name);
-		openFlag = "on".equals(openFlag) ? "Yes" : "No";
+		if ("on".equals(openFlag)) {
+			openFlag = "Yes";
+		}
+		else if ("off".equals(openFlag)) {
+			openFlag = "No";
+		}
+		// hideFlag = "on".equals(hideFlag) ? "Yes" : "No";
 		article.setOpenFlag(openFlag);
+		article.setHideFlag(hideFlag);
 		article.setRemark(remark);
 		article.setType(type);
 		article.setUrl(url);
@@ -228,6 +243,17 @@ public class SampleController {
 		return "1";
 	}
 
+	@RequestMapping("/toggleForkSen")
+	@ResponseBody
+	public String toggleForkSen(long senId, int forkValue) {
+		long userId = getUserId();
+		if (userId == 0) {
+			return "0";
+		}
+		this.articleService.toggleMarkSen2(senId, userId, forkValue);
+		return "1";
+	}
+
 	@RequestMapping("/toggleMarkSen")
 	@ResponseBody
 	public String toggleMarkSen(Long id) {
@@ -276,6 +302,13 @@ public class SampleController {
 		return quizWordBeanList;
 	}
 
+	@RequestMapping("/getRateListForQuiz")
+	@ResponseBody
+	public List<QuizRating> getRateListForQuiz(long qId) {
+		System.out.println("##invoke getRateListForQuiz##");
+		return this.articleService.getRateListForQuiz(qId);
+	}
+
 	@RequestMapping("/getWordListForQuiz2")
 	@ResponseBody
 	public List<QuizWordBean> getWordListForQuiz2(long id) {
@@ -294,6 +327,13 @@ public class SampleController {
 	@ResponseBody
 	public String saveWordExplain(String wordValue, String explainValue) {
 		return this.articleService.saveWordExplain(wordValue, explainValue);
+
+	}
+
+	@RequestMapping("/ignoreWord")
+	@ResponseBody
+	public String ignoreWord(long wordId) {
+		return this.articleService.ignoreWord(wordId, getUserId());
 
 	}
 	// String name = "test_" + new Date() + ".txt";

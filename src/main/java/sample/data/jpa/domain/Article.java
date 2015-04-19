@@ -59,7 +59,13 @@ public class Article implements Serializable {
 	private String openFlag;
 
 	@Column(nullable = true)
-	private String type;;
+	private String type;
+
+	@Column(nullable = true)
+	private int deleteFlag;
+
+	@Column(nullable = true)
+	private String hideFlag;
 
 	@OneToMany(mappedBy = "article", cascade = { CascadeType.ALL })
 	// fetch = FetchType.EAGER,
@@ -81,6 +87,31 @@ public class Article implements Serializable {
 	public Article() {
 	}
 
+	public Article(Long id, String name, String url, String remark, String lastUpt,
+			String createDate, String openFlag, String type, int deleteFlag,
+			String hideFlag, User user) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.url = url;
+		this.remark = remark;
+		this.lastUpt = lastUpt;
+		this.createDate = createDate;
+		this.openFlag = openFlag;
+		this.type = type;
+		this.deleteFlag = deleteFlag;
+		this.hideFlag = hideFlag;
+		this.user = user;
+	}
+
+	public String getHideFlag() {
+		return this.hideFlag;
+	}
+
+	public void setHideFlag(String hideFlag) {
+		this.hideFlag = hideFlag;
+	}
+
 	public List<UserArticleForkAsso> getUsers() {
 		return this.users;
 	}
@@ -91,6 +122,14 @@ public class Article implements Serializable {
 
 	public List<ArticleWordAsso> getWords() {
 		return this.words;
+	}
+
+	public int getDeleteFlag() {
+		return this.deleteFlag;
+	}
+
+	public void setDeleteFlag(int deleteFlag) {
+		this.deleteFlag = deleteFlag;
 	}
 
 	public void setWords(List<ArticleWordAsso> words) {

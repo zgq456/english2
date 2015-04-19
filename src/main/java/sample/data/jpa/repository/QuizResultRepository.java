@@ -16,10 +16,18 @@
 
 package sample.data.jpa.repository;
 
+import java.util.List;
+
 import org.springframework.data.repository.CrudRepository;
 
 import sample.data.jpa.domain.QuizResult;
 
 public interface QuizResultRepository extends CrudRepository<QuizResult, Long> {
 	public void deleteByUserIdAndQuizId(Long userId, Long quizId);
+
+	public List<QuizResult> findByUserIdAndWordId(Long userId, Long wordId);
+
+	// @Query("select new Article(a.id, a.name, a.url, a.remark, a.lastUpt, a.createDate, a.openFlag, a.type, a.deleteFlag, a.hideFlag, a.user) from Article a where a.user.id = :id and a.deleteFlag = 0")
+	// Page<Article> findByUserId(@Param("id") long userId, Pageable pageable);
+
 }

@@ -1816,12 +1816,12 @@
 			<version>1.7</version>
 			<scope>compile</scope>
 		</dependency>
-		<!-- <dependency> -->
-		<!-- <groupId>org.apache.tika</groupId> -->
-		<!-- <artifactId>tika-parsers</artifactId> -->
-		<!-- <version>1.7</version> -->
-		<!-- <scope>compile</scope> -->
-		<!-- </dependency> -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-parsers</artifactId>
+			<version>1.7</version>
+			<scope>compile</scope>
+		</dependency>
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
 			<artifactId>stanford-corenlp</artifactId>

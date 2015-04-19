@@ -27,8 +27,31 @@ import sample.data.jpa.domain.Article;
 public interface ArticleRepository extends CrudRepository<Article, Long> {
 	Page<Article> findAll(Pageable pageable);
 
-	Page<Article> findByUserId(long userId, Pageable pageable);
+	// @Column(nullable = true)
+	// private String url;
+	//
+	// @Column(nullable = true)
+	// private String remark;
+	//
+	// @Column(nullable = true)
+	// private String lastUpt;
+	//
+	// @Column(nullable = true)
+	// private String createDate;
+	//
+	// @Column(nullable = true)
+	// private String openFlag;
+	//
+	// @Column(nullable = true)
+	// private String type;
 
-	@Query("select count(a) from Article a where a.user.id = :id")
+	// Long id, String name, String url, String remark, String lastUpt,
+	// String createDate, String openFlag, String type, int deleteFlag
+
+	// @Query("select a.id, a.name, a.url, a.remark, a.lastUpt, a.createDate, a.openFlag, a.type from Article a where a.user.id = :id and a.deleteFlag = 0")
+	@Query("select new Article(a.id, a.name, a.url, a.remark, a.lastUpt, a.createDate, a.openFlag, a.type, a.deleteFlag, a.hideFlag, a.user) from Article a where a.user.id = :id and a.deleteFlag = 0")
+	Page<Article> findByUserId(@Param("id") long userId, Pageable pageable);
+
+	@Query("select count(a) from Article a where a.user.id = :id  and a.deleteFlag = 0")
 	public Long getUserTotalCount(@Param("id") Long id);
 }

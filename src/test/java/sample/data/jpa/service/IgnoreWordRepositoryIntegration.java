@@ -24,10 +24,13 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.transaction.Transactional;
 
@@ -53,6 +56,7 @@ import sample.data.jpa.SampleDataJpaApplication;
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
+import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
@@ -74,6 +78,7 @@ import sample.data.jpa.repository.GroupRepository;
 import sample.data.jpa.repository.HotelRepository;
 import sample.data.jpa.repository.QuizContentRepository;
 import sample.data.jpa.repository.QuizRepository;
+import sample.data.jpa.repository.QuizResultRepository;
 import sample.data.jpa.repository.SentenceRepository;
 import sample.data.jpa.repository.UserRepository;
 import sample.data.jpa.repository.WordRelationRepository;
@@ -97,6 +102,9 @@ public class IgnoreWordRepositoryIntegration {
 
 	@Autowired
 	WordRepository wordRepository;
+
+	@Autowired
+	QuizResultRepository quizResultRepository;
 	@Autowired
 	ArticleWordAssoRepository articleWordAssoRepository;
 	@Autowired
@@ -245,79 +253,8 @@ public class IgnoreWordRepositoryIntegration {
 	}
 
 	@Test
-	public void getExplain() {
-		// Word word = new Word();
-		// word.setValue("dog2");
-		// this.wordRepository.save(word);
-		WebDriver driver = new HtmlUnitDriver();
-		int index = 1;
-		Iterable<Word> wordIt = this.wordRepository.findAll();
-		for (Word word : wordIt) {
-			if (StringUtils.isNotEmpty(word.getExplain2())) {
-				continue;
-			}
-			System.out.println(index++ + ":" + word);
-
-			String wordVal = word.getValue();
-			driver.get("http://dict.cn/" + wordVal);
-			String pageSource = driver.getPageSource();
-			String pronStr = "";
-			// System.out.println(pageSource);
-			String explain = "";
-			if (pageSource.contains("æ‚¨è¦æŸ¥æ‰¾çš„æ˜¯ä¸æ˜¯")) {
-				explain = "UNKNOWN";
-			}
-			else {
-				WebElement div = null;
-				try {
-					div = driver.findElement(By.xpath("//div[@class='basic clearfix']"));
-					explain = div.getText();
-				}
-				catch (Exception e) {
-					e.printStackTrace();
-					explain = "TODO2";
-				}
-
-				if (!"TODO2".equals(explain)) {
-					try {
-						List<WebElement> pronList = driver.findElements(By
-								.xpath("//bdo[@lang='EN-US']"));
-						for (int i = 0; i < pronList.size(); i++) {
-							pronStr += pronList.get(i).getText() + " ";
-						}
-					}
-					catch (Exception e) {
-						pronStr = "UNKNOWN";
-					}
-				}
-			}
-
-			pronStr = StringUtils.trim(pronStr);
-			System.out.println("word:" + wordVal + "	expain:" + explain);
-			word.setExplain(explain);
-			word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-					.format(new Date()));
-			word.setPron(pronStr);
-			this.wordRepository.save(word);
-		}
-
-		//
-		// City city = this.cityRepository
-		// .findAll(new PageRequest(0, 1, Direction.ASC, "name")).getContent()
-		// .get(0);
-		// assertThat(city.getName(), is("Atlanta"));
-		//
-		// Page<HotelSummary> hotels = this.repository.findByCity(city, new PageRequest(0,
-		// 10, Direction.ASC, "name"));
-		// Hotel hotel = this.repository.findByCityAndName(city,
-		// hotels.getContent().get(0)
-		// .getName());
-		// assertThat(hotel.getName(), is("Doubletree"));
-		//
-		// List<RatingCount> counts = this.repository.findRatingCounts(hotel);
-		// assertThat(counts, hasSize(1));
-		// assertThat(counts.get(0).getRating(), is(Rating.AVERAGE));
-		// assertThat(counts.get(0).getCount(), is(greaterThan(1L)));
+	public void enhanceWord() {
+		this.articleService.enhanceWord();
 	}
 
 	public Map<String, Word> getAllWordsMap() {
@@ -426,8 +363,8 @@ public class IgnoreWordRepositoryIntegration {
 
 	@Test
 	public void parseFile() throws Exception {
-		// String filePath = "F:/research/2014/fcm/player/lib/Camel in Action.pdf";
-		String filePath = "http://tika.apache.org/1.7/examples.html";
+		String filePath = "F:/research/2014/fcm/player/lib/Camel in Action.pdf";
+		// String filePath = "http://tika.apache.org/1.7/examples.html";
 		// String filePath = "readme.txt";
 		InputStream stream = new FileInputStream(filePath);
 		Tika tika = new Tika();
@@ -444,8 +381,11 @@ public class IgnoreWordRepositoryIntegration {
 
 	@Test
 	public void parseExample() throws IOException, SAXException, TikaException {
-		InputStream stream = IgnoreWordRepositoryIntegration.class
-				.getResourceAsStream("http://tika.apache.org/1.7/examples.html");
+		// InputStream stream = IgnoreWordRepositoryIntegration.class
+		// .getResourceAsStream("http://tika.apache.org/1.7/examples.html");
+		// String filePath = "F:/research/2014/fcm/player/lib/Camel in Action.pdf";
+		String filePath = "c:/test.txt";
+		InputStream stream = new FileInputStream(filePath);
 		AutoDetectParser parser = new AutoDetectParser();
 		BodyContentHandler handler = new BodyContentHandler();
 		Metadata metadata = new Metadata();
@@ -650,6 +590,15 @@ public class IgnoreWordRepositoryIntegration {
 	}
 
 	@Test
+	public void testArticleList() throws Exception {
+		PageRequest pr = new PageRequest(0, 10);
+		long userId = 1L;
+		List<Article> articleList = this.articleRepository.findByUserId(userId, pr)
+				.getContent();
+		System.out.println("articleList:" + articleList.size());
+	}
+
+	@Test
 	public void testWord2() throws Exception {
 		long userId = 1L;
 		List<Word> wordList = this.wordRepository.findByUserId3(userId, 0, 10,
@@ -712,6 +661,32 @@ public class IgnoreWordRepositoryIntegration {
 		long quizId = 6L;
 		List<QuizContent> quizContent = this.quizContentRepository.findByQuizId(quizId);
 		System.out.println("###quizContent size:" + quizContent.size());
+	}
+
+	@Test
+	public void testGetQuizRating() {
+		long quizId = 7L;
+		List<QuizRating> quizRating = this.articleService.getRateListForQuiz(quizId);
+		System.out.println("###quizRating size:" + quizRating.size());
+	}
+
+	@Test
+	public void testGetWordListFromQuizResult() {
+		long userId = 1L;
+		Set<Long> wordIdSet = new HashSet<Long>();
+		AtomicInteger startQuesIndex = new AtomicInteger();
+		List<QuizWordBean> qwBeanList = this.articleService.getWordListFromQuizResult(
+				userId, wordIdSet, startQuesIndex);
+		System.out.println("###qwBeanList size:" + qwBeanList.size());
+		System.out.println("wordIdSet:" + wordIdSet);
+		System.out.println("startQuesIndex:" + startQuesIndex.get());
+	}
+
+	@Test
+	public void testAtomic() {
+		AtomicInteger startQuesIndex = new AtomicInteger();
+		System.out.println(startQuesIndex.incrementAndGet());
+		System.out.println(startQuesIndex.incrementAndGet());
 	}
 
 }

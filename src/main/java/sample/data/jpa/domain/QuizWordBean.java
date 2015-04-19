@@ -29,9 +29,12 @@ public class QuizWordBean {
 	private int rank;
 	private int blankCount;
 	private String answer;
+	private long senId;
 	private String sentence;
 	private int mark;
 	private String comment;
+	private int rightCount;
+	private String lastUpt;
 
 	public QuizWordBean(long wordId, String value, String explain2, int rank,
 			String sentence, int mark, String comment) {
@@ -43,6 +46,44 @@ public class QuizWordBean {
 		this.sentence = sentence;
 		this.mark = mark;
 		this.comment = comment;
+	}
+
+	public QuizWordBean(long wordId, String value, String explain2, int rank,
+			String sentence, int mark, String comment, int rightCount, String lastUpt) {
+		super();
+		this.wordId = wordId;
+		this.value = value;
+		this.explain2 = explain2;
+		this.rank = rank;
+		this.sentence = sentence;
+		this.mark = mark;
+		this.comment = comment;
+		this.rightCount = rightCount;
+		this.lastUpt = lastUpt;
+	}
+
+	public long getSenId() {
+		return this.senId;
+	}
+
+	public void setSenId(long senId) {
+		this.senId = senId;
+	}
+
+	public int getRightCount() {
+		return this.rightCount;
+	}
+
+	public void setRightCount(int rightCount) {
+		this.rightCount = rightCount;
+	}
+
+	public String getLastUpt() {
+		return this.lastUpt;
+	}
+
+	public void setLastUpt(String lastUpt) {
+		this.lastUpt = lastUpt;
 	}
 
 	/**
@@ -125,7 +166,7 @@ public class QuizWordBean {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see java.lang.Object#toString()
 	 */
 	@Override

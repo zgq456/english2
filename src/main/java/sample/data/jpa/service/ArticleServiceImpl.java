@@ -73,6 +73,7 @@ import sample.data.jpa.repository.UserRepository;
 import sample.data.jpa.repository.UserSenAssoRepository;
 import sample.data.jpa.repository.UserWordAssoRepository;
 import sample.data.jpa.repository.WordRepository;
+import sample.data.jpa.weixin.WeiXinUser;
 import edu.stanford.nlp.process.DocumentPreprocessor;
 
 @Component("articleService")
@@ -118,7 +119,13 @@ public class ArticleServiceImpl {
 	 * @param id
 	 * @return
 	 */
-	public List<QuizWordBean> getWordListForQuiz2(long quizId) {
+	public List<QuizWordBean> getWordListForQuiz2(long quizId, String password) {
+		Quiz quiz = this.quizRepository.findOne(quizId);
+		if (StringUtils.isNotEmpty(quiz.getPassword())) {
+			if (!quiz.getPassword().equals(password)) {
+				return new ArrayList<QuizWordBean>();
+			}
+		}
 		List<QuizContent> quizContentList = this.quizContentRepository
 				.findByQuizId(quizId);
 		List<QuizWordBean> results = new ArrayList<QuizWordBean>();
@@ -134,15 +141,13 @@ public class ArticleServiceImpl {
 		long userId = 0L;
 		AtomicInteger startQuesIndex = new AtomicInteger();
 		startQuesIndex.set(-1);
-		Set<Long> wordIdSet = new HashSet<Long>();
-		generateQuestion(userId, results, MyConstants.CUSTOM_QUIZ, startQuesIndex,
-				wordIdSet);
+		generateQuestion(userId, results, MyConstants.CUSTOM_QUIZ, startQuesIndex, null);
 		return results;
 	}
 
 	public List<QuizWordBean> getWordListFromQuizResult(long userId, Set<Long> wordIdSet,
 			AtomicInteger startQuesIndex) {
-		String sql = "SELECT qr.word_id, w.value, w.explain2, 5 rank, w.mark, sum(qr.is_right) right_count, max(qr.last_upt) last_upt"
+		String sql = "SELECT qr.word_id, w.value, w.explain2, 5 rank, w.mark, sum(qr.is_right) right_count, min(qr.last_upt) last_upt"
 				+ " FROM quiz_result qr, word w where qr.word_id = w.id and qr.user_id = ? "
 				+ " group by qr.word_id having  sum(qr.is_right) < 7 order by right_count asc ";
 		System.out.println("begin getWordListFromQuizResult " + new Date());
@@ -184,13 +189,17 @@ public class ArticleServiceImpl {
 		}
 
 		System.out.println("begin generateQuestion " + new Date());
-		generateQuestion(userId, results2, MyConstants.FREE_QUIZ, startQuesIndex,
-				wordIdSet);
+		generateQuestion(userId, results2, MyConstants.FREE_QUIZ, startQuesIndex, null);
 
 		// return results.size() > 10 ? results.subList(0, 10) : results; // FIXME
 		return results2; // FIXME
 	}
 
+	/**
+	 * get word list for free quiz
+	 * @param userId
+	 * @return
+	 */
 	public List<QuizWordBean> getWordListForQuiz(long userId) {
 		int pageSize = 10;
 		AtomicInteger startQuesIndex = new AtomicInteger();
@@ -293,7 +302,7 @@ public class ArticleServiceImpl {
 				results.remove(i);
 				i--;
 			}
-			else if (wordIdSet.contains(word.getId())) {
+			else if (wordIdSet != null && wordIdSet.contains(word.getId())) {
 				results.remove(i);
 				i--;
 			}
@@ -636,6 +645,9 @@ public class ArticleServiceImpl {
 		for (int i = 0; i < quizSize; i++) {
 			Quiz quiz = quizList.get(i);
 			if (quiz.getDeleteFlag() != 1) {
+				if (StringUtils.isNotEmpty(quiz.getPassword())) {
+					quiz.setPassword("*******");
+				}
 				quizList2.add(quiz);
 			}
 		}
@@ -651,8 +663,19 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
-	public Quiz getQuiz(long qId) {
-		return this.quizRepository.findOne(qId);
+	public Quiz getQuiz(long qId, String password) {
+		Quiz quiz = this.quizRepository.findOne(qId);
+		if (StringUtils.isEmpty(quiz.getPassword())) {
+			return quiz;
+		}
+		else if (StringUtils.equals(quiz.getPassword(), password)) {
+			return quiz;
+		}
+		else {
+			Quiz fakeQuiz = new Quiz();
+			fakeQuiz.setId(-1L);
+			return fakeQuiz;
+		}
 	}
 
 	/**
@@ -983,10 +1006,15 @@ public class ArticleServiceImpl {
 	/**
 	 * @param answerInfo
 	 */
-	public void submitAnswer(String answerInfo, long userId, long qId) {
+	public String submitAnswer(String answerInfo, long userId, long qId) {
 		Quiz quiz = null;
 		if (qId != 0) {
-			this.quizResultRepository.deleteByUserIdAndQuizId(userId, qId);
+			// this.quizResultRepository.deleteByUserIdAndQuizId(userId, qId);
+			List<QuizResult> oldQRList = this.quizResultRepository.findByUserIdAndQuizId(
+					userId, qId);
+			if (!oldQRList.isEmpty()) {
+				return "您已经提交过，不能再提交了";
+			}
 			quiz = this.quizRepository.findOne(qId);
 			quiz.setHot(quiz.getHot() + 1);
 		}
@@ -1013,6 +1041,8 @@ public class ArticleServiceImpl {
 			this.quizResultRepository.save(qr);
 		}
 
+		return "提交成功";
+
 	}
 
 	/**
@@ -1024,7 +1054,9 @@ public class ArticleServiceImpl {
 	 * @param senArr2
 	 */
 	public void saveOrUpdateQuiz(String id, String name, String remark, String oper,
-			String[] wordArr2, String[] senArr2, String[] commArr2, long userId) {
+			String[] wordArr2, String[] senArr2, String[] commArr2, long userId,
+			String password) {
+		password = StringUtils.trim(password);
 		if ("add".equals(oper)) {
 			Quiz quiz = new Quiz();
 			quiz.setName(name);
@@ -1032,6 +1064,7 @@ public class ArticleServiceImpl {
 			User author = new User();
 			author.setId(userId);
 			quiz.setAuthor(author);
+			quiz.setPassword(password);
 			this.quizRepository.save(quiz);
 
 			for (int i = 0; i < wordArr2.length; i++) {
@@ -1198,5 +1231,23 @@ public class ArticleServiceImpl {
 
 		return "done";
 
+	}
+
+	/**
+	 * @param wxUser
+	 */
+	public User updateUserInDB(WeiXinUser wxUser) {
+		User user = this.userRepository.findByOpenId(wxUser.getOpenId());
+		if (user == null) {
+			user = new User();
+		}
+		user.setNickname(wxUser.getNickname());
+		user.setSex(wxUser.getSex());
+		user.setProvince(wxUser.getProvince());
+		user.setCity(wxUser.getCity());
+		user.setHeadimgurl(wxUser.getHeadimgurl());
+		user.setOpenId(wxUser.getOpenId());
+		this.userRepository.save(user);
+		return user;
 	}
 }

@@ -27,6 +27,8 @@ public interface QuizResultRepository extends CrudRepository<QuizResult, Long> {
 
 	public List<QuizResult> findByUserIdAndWordId(Long userId, Long wordId);
 
+	public List<QuizResult> findByUserIdAndQuizId(Long userId, Long quizId);
+
 	// @Query("select new Article(a.id, a.name, a.url, a.remark, a.lastUpt, a.createDate, a.openFlag, a.type, a.deleteFlag, a.hideFlag, a.user) from Article a where a.user.id = :id and a.deleteFlag = 0")
 	// Page<Article> findByUserId(@Param("id") long userId, Pageable pageable);
 

@@ -20,7 +20,9 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -40,6 +42,9 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
@@ -689,4 +694,42 @@ public class IgnoreWordRepositoryIntegration {
 		System.out.println(startQuesIndex.incrementAndGet());
 	}
 
+	@Test
+	public void testURLEncoder() {
+		String url = "http://wlj.sturgeon.mopaas.com/zgq.jsp";
+		try {
+			url = URLEncoder.encode(url, "UTF-8");
+			System.out.println("###url:" + url);
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+	}
+
+	@Test
+	public void testJSON() {
+		WebDriver driver = new HtmlUnitDriver();
+		String url = "https://api.weixin.qq.com/sns/userinfo?access_token=OezXcEiiBSKSxW0eoylIePtkkyI7zFenA_gU_RL0J_c_RcvcEC1pJlFfWYqNj1juDHZUfYOze1gaULd_D1GCyEwLd0HfZVg2LXlmZ5I4t9IdJy_Q3Z5J9Vu1ZtvByjniaLNZ9C15CksUENEW858vvw&openid=oz1rJs-TVjVxCJVjMKgdqO_pFtR8&lang=zh_CN";
+		driver.get(url);
+		String pageSource = driver.getPageSource();
+		try {
+			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+		System.out.println("pageSource:" + pageSource);
+
+		// JsonElement jsonElm = new JsonParser().parse(pageSource);
+		try {
+			JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
+			System.out.println("openid:" + json.get("openid"));
+			System.out.println("nickname:" + json.get("nickname"));
+		}
+		catch (ParseException e) {
+			// TODO Auto-generated catch block
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+
+	}
 }

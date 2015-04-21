@@ -56,8 +56,10 @@
 						
 					</table>
 				</div>
-				<div  style="margin-top: 10px;" >
-					<span class="title2">排名榜</span>
+				<div  style="margin-top: 10px;" id="topListDiv" >
+					<span class="title2">排名榜 &nbsp;
+					 <button class="btn btn-info" type="button" onclick="refreshTopList()">刷新</button> 
+					</span>
 					<div id="rateDiv" class="title2">
 					</div>
 				</div>
@@ -66,19 +68,22 @@
 				<div class="title2">Slides are loading...</div>
 			</div>
 			 <div >
-				<button class="btn btn-info" type="button" onclick="checkAnswers()">
+				<button class="btn btn-info" type="button" onclick="checkAnswers0()">
 						<i class="ace-icon fa fa-check bigger-110"></i>
 						提交
 				</button>
-				&nbsp;
-				<button class="btn btn-info" type="button" onclick="newOneFreeQuiz()">
-						再来一组
-				</button>
+				<span id="newOneMoreSpan" style="display: none">
+					&nbsp;
+					<button class="btn btn-info" type="button" onclick="newOneFreeQuiz()">
+							再来一组
+					</button>
+				</span>
 				&nbsp;
 				<button class="btn btn-info" type="button" onclick="backToList()">
 						返回
 				</button>
 			</div>
+			<div id='submitResultDiv' style="color: red"></div>
 			<div id='resultDiv'></div>
 		</div>
 		<!-- PAGE CONTENT ENDS -->
@@ -95,6 +100,7 @@
 <script type="text/javascript">
 	var totalSize = 0;
 	var qid = 0;
+	var password = 0;
 	var ajaxQuizData = null;
 	var scripts = [ null, "../../assets/js/jquery-ui.custom.min.js",
 			"../../assets/js/chosen.jquery.min.js",
@@ -107,17 +113,25 @@
 						//inline scripts related to this page
 						jQuery(function($) {
 
+							password = GetArgsFromHref(window.location.href, "password");
 							qid = GetArgsFromHref(window.location.href, "qid");
 							qid = qid.replace("#page/freeQuiz", "");
 							console.log("qid:" + qid);
-							initQuizInfo(qid);
+							initQuizInfo(qid, password);
 							var destUrl = "";
 							if(qid == "") {
 								destUrl = "../../getWordListForQuiz";
 							} else {
-								destUrl = "../../getWordListForQuiz2?id=" + qid;
+								destUrl = "../../getWordListForQuiz2?id=" + qid + "&password=" +　password;
 							}
 							
+							if(qid == "") {
+								$("#newOneMoreSpan").show();
+								$("#topListDiv").hide();
+							} else{
+								$("#newOneMoreSpan").hide();
+								$("#topListDiv").show();
+							}
 							
 							$.ajax({
 								type : "POST",
@@ -161,7 +175,7 @@
 									$.mask.definitions['~']='[-A-Za-z0-9]';
 									for(var i = 0; i < data.length; i++) {
 										$('#input' + i).attr('size', data[i].blankCount);
-										var blankChars = "";
+										var blankChars = "?";
 										for(var j = 0; j < data[i].blankCount; j++) {
 											blankChars += '~';
 										}
@@ -215,33 +229,7 @@
 		});
 	}
 	
-	function initQuizInfo(qid) {
-		if(qid == "" || qid == 0) {
-			$("#quizName").html("自由测试");
-			$("#quizRemark").html("为您量身定制的测试题");
-			document.title = "英语单词小测验--" + $("#quizName").html();
-			return;
-		}
-			
-		$.ajax({
-			type : "POST",
-			url : "../../getQuiz",
-			data : {
-				qId : qid
-			},
-			async : true,
-			dataType : "json",
-			success : function(data) {
-				$("#quizName").html(data.name);
-				$("#quizRemark").html(data.remark);
-				document.title = "英语单词小测验--" + $("#quizName").html();
-			},
-			error : function(data) {
-				alert("submit result error, please contact administrator");
-			}
-
-		});
-			
+	function refreshTopList() {
 		$.ajax({
 			type : "POST",
 			url : "../../getRateListForQuiz",
@@ -275,8 +263,42 @@
 			}
 
 		});
-		
-		
+	}
+	
+	function initQuizInfo(qid, password) {
+		if(qid == "" || qid == 0) {
+			$("#quizName").html("自由测试");
+			$("#quizRemark").html("为您量身定制的测试题");
+			document.title = "英语单词小测验--" + $("#quizName").html();
+			return;
+		}
+			
+		$.ajax({
+			type : "POST",
+			url : "../../getQuiz",
+			data : {
+				qId : qid,
+				password : password
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data.id == -1) {
+					alert("密码错误");
+					history.go(-1);
+					return;
+				}
+				$("#quizName").html(data.name);
+				$("#quizRemark").html(data.remark);
+				document.title = "英语单词小测验--" + $("#quizName").html();
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+			
+		refreshTopList();
 	}
 	
 	function checkAnswer(inputIndex, blankCount) {
@@ -305,10 +327,25 @@
 		window.location = "ajax.html#page/quizs";
 	}
 	
+	function checkAnswers0() {
+		if(qid == "" || qid == 0) {
+			checkAnswers();
+		} else {
+			bootbox.confirm("你只有一次提交机会哦, 确定要提交吗？", function(result) {
+				if(result) {
+					checkAnswers();
+				}
+			});
+		}
+		
+	}
 	function checkAnswers() {
 		var rightCount = 0;
 		var answerInfo = "";
 		var resultInfo = "";
+		
+		$("#submitResultDiv").hide();
+		
 		for(var i = 0; i < totalSize; i++) {
 			var oneWordId = $("#wordIdSpan" + i).html();
 			var isAnswerRight = $("#input" + i).val().toUpperCase() == $("#answerSpan" + i).html().toUpperCase(); 
@@ -359,9 +396,11 @@
 				qId : qid 
 			},
 			async : true,
-			dataType : "json",
+			dataType : "text",
 			success : function(data) {
-				
+				$("#submitResultDiv").html(data);
+				$("#submitResultDiv").show();
+				refreshTopList();
 				//rowData.tempRank = parseRank(newRank);
 				//$("#grid-table").jqGrid('setRowData', id, rowData);
 			},

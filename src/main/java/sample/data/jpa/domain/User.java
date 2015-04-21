@@ -76,6 +76,27 @@ public class User implements Serializable {
 	@Column(nullable = true)
 	private String createDate;
 
+	@Column(nullable = true)
+	private String openId;
+
+	@Column(nullable = true)
+	private String nickname;
+
+	@Column(nullable = true)
+	private int sex = -1;
+
+	@Column(nullable = true)
+	private String province;
+
+	@Column(nullable = true)
+	private String city;
+
+	@Column(nullable = true)
+	private String country;
+
+	@Column(nullable = true)
+	private String headimgurl;
+
 	@OneToMany(mappedBy = "user")
 	// fetch = FetchType.EAGER,
 	private Set<Article> articles;
@@ -112,6 +133,62 @@ public class User implements Serializable {
 
 	public void setForkArticles(List<UserArticleForkAsso> forkArticles) {
 		this.forkArticles = forkArticles;
+	}
+
+	public String getOpenId() {
+		return this.openId;
+	}
+
+	public void setOpenId(String openId) {
+		this.openId = openId;
+	}
+
+	public String getNickname() {
+		return this.nickname;
+	}
+
+	public void setNickname(String nickname) {
+		this.nickname = nickname;
+	}
+
+	public int getSex() {
+		return this.sex;
+	}
+
+	public void setSex(int sex) {
+		this.sex = sex;
+	}
+
+	public String getProvince() {
+		return this.province;
+	}
+
+	public void setProvince(String province) {
+		this.province = province;
+	}
+
+	public String getCity() {
+		return this.city;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
+	}
+
+	public String getCountry() {
+		return this.country;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+
+	public String getHeadimgurl() {
+		return this.headimgurl;
+	}
+
+	public void setHeadimgurl(String headimgurl) {
+		this.headimgurl = headimgurl;
 	}
 
 	public static long getSerialversionuid() {

@@ -45,7 +45,8 @@
 
 	var scripts = [ null,
 			"../../assets/js/jqGrid/jquery.jqGrid.min.js",
-			"../../assets/js/jqGrid/i18n/grid.locale-en.js", null ]
+			"../../assets/js/jqGrid/i18n/grid.locale-en.js",
+			"../../assets/js/bootbox.min.js", null ]
 	ace
 			.load_ajax_scripts(
 					scripts,
@@ -88,7 +89,7 @@
 								datatype : "json",
 								url : "../../getQuizList",
 								height : 400,
-								colNames : [ 'ID', '名称', '操作' ],
+								colNames : [ 'ID', '名称', '操作', 'psw' ],
 								colModel : [ {
 									name : 'id',
 									index : 'id',
@@ -113,6 +114,11 @@
 									index : 'act',
 									sortable : false,
 									width : 90
+								},{
+									name : 'password',
+									index : 'password',
+									hidden : true,
+									editable : false
 								} ],
 
 								viewrecords : true,
@@ -143,8 +149,10 @@
 									// alert("ids:" + ids);
 									for (var i = 0; i < ids.length; i++) {
 										var cl = ids[i];
-										viewBtnHtml = "<input  type='button' value='查看' onclick=\"viewQuiz('"
-												+ cl + "');\"  />";
+										var rowData = jQuery("#grid-table").getRowData(cl);
+										console.log("#rowData:" + rowData.password);
+										viewBtnHtml = "<input  type='button' class='btn btn-info' value='查看' onclick=\"viewQuiz('"
+												+ cl + "', '" + rowData.password + "');\"  />";
 										jQuery("#grid-table").jqGrid(
 												'setRowData',
 												ids[i],
@@ -551,10 +559,22 @@
 					});
 	
 	
-	function viewQuiz(qId) {
-		//console.log("qId:" + qId);
-		window.location = "ajax.html?qid=" + qId + "#page/freeQuiz";
+	function viewQuiz(qId, psw) {
+		if(psw != "") {
+			bootbox.prompt("请输入密码:", function(result) {
+				if (result === null) {
+					
+				} else {
+					//console.log("qId:" + qId);
+					window.location = "ajax.html?password=" + result + "&qid=" + qId + "#page/freeQuiz";
+				}
+			});
+		} else {
+			window.location = "ajax.html?qid=" + qId + "#page/freeQuiz";
+		}
 	}
+	
+	
 
 </script>
 

@@ -51,6 +51,13 @@
 					<textarea id="remark" name="remark" class="form-control"
 						placeholder="this is XXX related"></textarea>
 				</div>
+				<label class="col-sm-3 control-label no-padding-right"
+					for="form-field-1"> 密码 </label>
+
+				<div class="col-sm-9">
+					<input type="text" id="password" name="password" placeholder=""
+						class="col-xs-10 col-sm-5" />
+				</div>
 			</div>
 		</form>
 	</div>
@@ -97,9 +104,9 @@
 
 	<div id="quesTemplateDiv" style="display: none">
 		<div style="margin: 5px; border: 3px dashed #ccc; margin-top: 5px">
-			<table>
+			<table style="width: 100%">
 				<tr>
-					<td>Word <span name='indexSpan'>$#{Index}</span></td>
+					<td style="width: 20%" align="right">Word <span name='indexSpan'>$#{Index}</span></td>
 					<td>
 						<input type="text" name="word" onblur="getWordExplain(this)" />
 						<div name="wordExplainSpan"  ></div>
@@ -112,17 +119,17 @@
 					</td>
 				</tr>
 				<tr>
-					<td>Sentence</td>
-					<td><textarea name="sentence" /></td>
+					<td align="right">Sentence</td>
+					<td><textarea name="sentence"  class="autosize-transition form-control" /></td>
 				</tr>
 				<tr>
-					<td>Comment</td>
-					<td><textarea name="comment" /></td>
+					<td align="right">Comment</td>
+					<td><textarea name="comment" class="autosize-transition form-control"  /></td>
 				</tr>
 				<tr>
 					<td colspan="2" align="center">
 						<button class="btn btn-info" type="button" onclick="removeQuiz(this)">
-							<i class="ace-icon fa fa-check bigger-110"></i> Remove
+							 Remove
 						</button>
 					</td>
 				</tr>
@@ -229,6 +236,10 @@
 		$("#questionsDiv").append(
 				$("#quesTemplateDiv").html().replace("$#{Index}", quesIndex));
 		quesIndex++;
+		
+		$('textarea[class*=autosize]').autosize({
+			append : "\n"
+		});
 	}
 	
 	function removeQuiz(obj) {
@@ -336,6 +347,7 @@
 				oper : 'add',
 				name : $("#name").val(),
 				remark : $("#remark").val(),
+				password : $("#password").val(),
 				wordArr : wordArr,
 				senArr : senArr,
 				commArr : commArr
@@ -745,4 +757,5 @@
 		});
 	});
 </script>
+
 

@@ -31,6 +31,7 @@ import org.json.simple.parser.JSONParser;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -52,6 +53,7 @@ import sample.data.jpa.domain.Word;
 import sample.data.jpa.service.ArticleServiceImpl;
 import sample.data.jpa.service.CityService;
 import sample.data.jpa.service.JqGridData;
+import sample.data.jpa.service.MyConstants;
 import sample.data.jpa.service.UserServiceImpl;
 import sample.data.jpa.weixin.WeiXinUser;
 
@@ -69,8 +71,15 @@ public class SampleController {
 
 	public User getUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		String name = auth.getName();
-		User user = this.userService.getUser(name);
+		User user = null;
+		if (((Integer) auth.getDetails()) == MyConstants.TERMINAL_WEB) {
+			String email = auth.getName();
+			user = this.userService.getUserByEmail(email);
+		}
+		else {
+			String openId = auth.getName();
+			user = this.userService.getUserByOpenId(openId);
+		}
 		return user;
 	}
 
@@ -82,25 +91,37 @@ public class SampleController {
 	@RequestMapping("/weixinLogin")
 	public ModelAndView weixinLogin(HttpServletRequest request,
 			HttpServletResponse response) throws Exception {
-		// WeiXinHandler handler = new WeiXinHandler(request, response);
-		// return handler.valid();
+		WeiXinUser wxUser = null;
+		boolean isDebug = true; // FIXME
 
-		String code = request.getParameter("code"); // eg:
-													// 021ecbe7535641f4a56b89a075df303l
-		String state = request.getParameter("state"); // eg: 123
+		if (!isDebug) {
+			String code = request.getParameter("code"); // eg:
+			// 021ecbe7535641f4a56b89a075df303l
+			String state = request.getParameter("state"); // eg: 123
 
-		System.out.println("code:" + code + " state:" + state);
-		String appId = "wxad1e1211d18cd79d";
-		String secret = "4a5a2aa472e9cc890b896623c2c2facf";
+			System.out.println("code:" + code + " state:" + state);
+			String appId = "wxad1e1211d18cd79d";
+			String secret = "4a5a2aa472e9cc890b896623c2c2facf";
 
-		// 第二步：通过code换取网页授权access_token
-		String[] tokenInfo = getAccessToken(code, appId, secret);
-		String accessToken = tokenInfo[0];
-		String openId = tokenInfo[1];
-		WeiXinUser wxUser = getWeiXinUser(accessToken, openId);
+			// 第二步：通过code换取网页授权access_token
+			String[] tokenInfo = getAccessToken(code, appId, secret);
+			String accessToken = tokenInfo[0];
+			String openId = tokenInfo[1];
+
+			wxUser = getWeiXinUser(accessToken, openId);
+		}
+		else {
+			wxUser = new WeiXinUser();
+			wxUser.setOpenId("aaaaaaaaabbbbbbbbb");
+			wxUser.setNickname("猴猴");
+		}
 
 		User user = this.articleService.updateUserInDB(wxUser);
-		return null;
+		UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+				user.getOpenId(), user, user.getAuthorities());
+		auth.setDetails(MyConstants.TERMINAL_WEIXIN);
+		SecurityContextHolder.getContext().setAuthentication(auth);
+		return new ModelAndView("redirect:/html/ajax/ajax.html#page/articles");
 	}
 
 	/**
@@ -163,8 +184,17 @@ public class SampleController {
 	@Transactional(readOnly = true)
 	public String getUserName() {
 		User user = getUser();
-		return user == null ? "Guest" : StringUtils.substring(user.getEmail(), 0, 5)
-				+ "...";
+		if (user == null) {
+			return "Guest";
+		}
+		else {
+			if (StringUtils.isEmpty(user.getNickname())) {
+				return StringUtils.substring(user.getEmail(), 0, 5) + "...";
+			}
+			else {
+				return user.getNickname();
+			}
+		}
 	}
 
 	@RequestMapping("/")

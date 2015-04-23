@@ -39,8 +39,13 @@ public class UserServiceImpl {
 		return user;
 	}
 
-	public User getUser(String email) {
+	public User getUserByEmail(String email) {
 		User user = this.userRepository.findByEmail(email);
+		return user;
+	}
+
+	public User getUserByOpenId(String openId) {
+		User user = this.userRepository.findByOpenId(openId);
 		return user;
 	}
 }

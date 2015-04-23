@@ -65,6 +65,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		// http.authorizeRequests().antMatchers("/**").permitAll();
 		http.authorizeRequests().antMatchers("/weixinLogin").permitAll();
 		http.authorizeRequests().antMatchers("/weixin").permitAll();
+		http.authorizeRequests().antMatchers("/getUserName").permitAll();
 
 		http.authorizeRequests().anyRequest().authenticated().and().formLogin()
 				.defaultSuccessUrl("/html/ajax/ajax.html", false)

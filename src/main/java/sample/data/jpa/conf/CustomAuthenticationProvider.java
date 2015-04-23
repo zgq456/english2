@@ -29,6 +29,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import sample.data.jpa.domain.User;
+import sample.data.jpa.service.MyConstants;
 import sample.data.jpa.service.UserServiceImpl;
 
 /**
@@ -43,7 +44,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider, Ser
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * org.springframework.security.authentication.AuthenticationProvider#authenticate
 	 * (org.springframework.security.core.Authentication)
@@ -58,8 +59,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider, Ser
 		User user = this.userService.getUser(email, password);
 		if (user != null) {
 			UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-					email, password, user.getAuthorities());
-			auth.setDetails(user.getRoleNames());
+					email, user, user.getAuthorities());
+			auth.setDetails(MyConstants.TERMINAL_WEB);
 			return auth;
 		}
 		else {
@@ -70,7 +71,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider, Ser
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * org.springframework.security.authentication.AuthenticationProvider#supports(java
 	 * .lang.Class)

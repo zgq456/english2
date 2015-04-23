@@ -26,4 +26,7 @@ public class MyConstants {
 	public final static int CUSTOM_QUIZ = 1;
 	public final static int FREE_QUIZ = 2;
 
+	public final static int TERMINAL_WEB = 1;
+	public final static int TERMINAL_WEIXIN = 2;
+
 }

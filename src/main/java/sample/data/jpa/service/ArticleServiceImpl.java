@@ -218,14 +218,14 @@ public class ArticleServiceImpl {
 
 				String sql = "SELECT word_id, value,  explain2, uwa.rank, w.mark "
 						+ "  FROM user_word_asso uwa, word w, user u "
-						+ " where uwa.word_id = w.id and u.id = uwa.user_id and u.id = ? and uwa.rank != -1 " // and
-						// w.mark
-						// > 0
+						+ " where uwa.word_id = w.id and u.id = uwa.user_id and u.id = ? "
+						+ " and uwa.rank != -1 "
+						+ " and w.id not in (select distinct word_id from quiz_result where user_id = ?) "
 						+ " order by rank desc, mark asc limit " + startIndex + ", 50";
 				startIndex += 50;
 				System.out.println("begin getWordListForQuiz " + new Date());
 				List<QuizWordBean> resultsFromUWA = this.jdbcTemplate.query(sql,
-						new Object[] { userId }, new RowMapper<QuizWordBean>() {
+						new Object[] { userId, userId }, new RowMapper<QuizWordBean>() {
 							@Override
 							public QuizWordBean mapRow(ResultSet rs, int rowNum)
 									throws SQLException {
@@ -1181,6 +1181,8 @@ public class ArticleServiceImpl {
 
 	public String saveWordExplain(String wordValue, String explainValue) {
 		String result = "";
+		wordValue = StringUtils.trim(wordValue);
+		explainValue = StringUtils.trim(explainValue);
 		List<Word> wordList = this.wordRepository.findByLowValue(StringUtils
 				.lowerCase(wordValue));
 		Word word = null;

@@ -16,6 +16,7 @@
 package sample.data.jpa.service;
 
 //import org.apache.tika.Tika;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -30,13 +31,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.transaction.Transactional;
 
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -63,6 +74,7 @@ import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
+import sample.data.jpa.domain.SenBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
 import sample.data.jpa.domain.User;
@@ -621,6 +633,23 @@ public class IgnoreWordRepositoryIntegration {
 	}
 
 	@Test
+	public void testWord4() throws Exception {
+		long userId = 16L;
+		long articleId = 233L;
+		List<Word> wordList = this.wordRepository.findByUserId4(userId, articleId, 0, 10); // ,"value",
+		// "value2",
+		// "desc"
+		;
+		System.out.println("wordList:" + wordList.size());
+		for (int i = 0; i < wordList.size(); i++) {
+			Word word = wordList.get(i);
+			System.out.println("word:" + word + " value:" + word.getValue() + " id:"
+					+ word.getId() + " pron:" + word.getPron() + " explain:"
+					+ word.getExplain2() + " Interest():" + word.getTempInterest());
+		}
+	}
+
+	@Test
 	public void testWordCount() throws Exception {
 		long userId = 1L;
 		long count = this.wordRepository.getWordTotalCount(userId);
@@ -707,6 +736,23 @@ public class IgnoreWordRepositoryIntegration {
 	}
 
 	@Test
+	public void testGetRateForQuiz() {
+		long quizId = 1;
+		long userId = 1;
+		double rate = this.articleService.getRateForQuiz(quizId, userId);
+		System.out.println("rate:" + rate);
+	}
+
+	@Test
+	public void testGetSenList2() {
+		long articleId = 226;
+		long userId = 1;
+		JqGridData<SenBean> senData = this.articleService.getSenList2(articleId, userId,
+				10, 1);
+		System.out.println("senData:" + senData.getJsonString());
+	}
+
+	@Test
 	public void testJSON() {
 		WebDriver driver = new HtmlUnitDriver();
 		String url = "https://api.weixin.qq.com/sns/userinfo?access_token=OezXcEiiBSKSxW0eoylIePtkkyI7zFenA_gU_RL0J_c_RcvcEC1pJlFfWYqNj1juDHZUfYOze1gaULd_D1GCyEwLd0HfZVg2LXlmZ5I4t9IdJy_Q3Z5J9Vu1ZtvByjniaLNZ9C15CksUENEW858vvw&openid=oz1rJs-TVjVxCJVjMKgdqO_pFtR8&lang=zh_CN";
@@ -730,6 +776,69 @@ public class IgnoreWordRepositoryIntegration {
 			// TODO Auto-generated catch block
 			throw new UnsupportedOperationException("Auto-generated method stub", e);
 		}
+
+	}
+
+	/**
+	 *
+	 */
+	@Test
+	public void testTimeZone() {
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT+8"));
+		System.out.println(new Date());
+		System.out
+				.println(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+	}
+
+	@Test
+	public void testHttpClient() throws Exception {
+		HttpClient httpClient = new HttpClient();
+		// URI theUri = new URI(
+		// "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=5JJzFJNi3mlBuIx0gRCxr8323nQjcnIreUfY87wl8rEOaItrvuInJDX8ile4RL9JCGW0Cvay0E2iWZOhE-D1zV_PcGvPK2Jom6m2uas252E",
+		// false);
+		String JSON_STRING = FileUtils.readFileToString(new File("test.json"));
+		System.out.println(JSON_STRING);
+		StringRequestEntity requestEntity = new StringRequestEntity(JSON_STRING,
+				"application/json", "UTF-8");
+
+		PostMethod postMethod = new PostMethod(
+				"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=1_5JJzFJNi3mlBuIx0gRCxr8323nQjcnIreUfY87wl8rEOaItrvuInJDX8ile4RL9JCGW0Cvay0E2iWZOhE-D1zV_PcGvPK2Jom6m2uas252E");
+		postMethod.setRequestEntity(requestEntity);
+
+		// HttpResponse response = httpClient.execut
+
+		int statusCode = httpClient.executeMethod(postMethod);
+		System.out.println("statusCode:" + statusCode);
+
+		// {"errcode":0,"errmsg":"ok","msgid":205426623}
+
+	}
+
+	@Test
+	public void testHttpClient2() throws Exception {
+		ClassLoader classLoader = getClass().getClassLoader();
+		File jsonTemplateFile = new File(classLoader.getResource("test.json").getFile());
+		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
+
+		DefaultHttpClient httpClient = new DefaultHttpClient();
+		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
+		String JSON_STRING = FileUtils.readFileToString(jsonTemplateFile);
+		System.out.println(JSON_STRING);
+		StringEntity requestEntity = new StringEntity(JSON_STRING, "application/json",
+				"UTF-8");
+		String token = "a2R1gAnNzgTjrrVTjJhQ-WIoIjnRUnt1bBrLNUdrsW4Lj6B4NeUPtvAf60SAOZoBohD8AXzqujkHOozZKTz35J7v4BdMI3-RIKmhm5pTo1Vo";
+		String uri = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="
+				+ token;
+		HttpPost method = new HttpPost(uri);
+		method.setEntity(requestEntity);
+		HttpResponse result = httpClient.execute(method);
+		String resData = EntityUtils.toString(result.getEntity());
+		JSONObject json = (JSONObject) new JSONParser().parse(resData);
+		System.out.println("errcode:" + json.get("errcode"));
+		System.out.println("errmsg:" + json.get("errmsg"));
+		System.out.println("msgid:" + json.get("msgid"));
+
+		// {"errcode":0,"errmsg":"ok","msgid":205426623}
 
 	}
 }

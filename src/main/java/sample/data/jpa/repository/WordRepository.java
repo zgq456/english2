@@ -78,10 +78,23 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 			+ "case when :sort = 'level desc' then level end desc, "
 			+ "case when :sort = 'value asc' then value_sort end asc, "
 			+ "case when :sort = 'value desc' then value_sort end desc "
-			+ "limit :page, :size", nativeQuery = true)
+			+ ", hit desc limit :page, :size", nativeQuery = true)
 	List<Word> findByUserId3(@Param("id") Long userId, @Param("page") int page,
 			@Param("size") int size, @Param("sort") String sort); // ,, @Param("sidx")
-																	// String sidx,
+
+	@Query(value = "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, "
+			+ " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort, t1.last_upt, t1.low_value, t1.mark, t1.hit temp_hit, t1.hit hit_sort, "
+			+ " uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id, uwo.interest temp_interest from ("
+			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
+			+ " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
+			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
+			+ "	group by w.id "
+			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id order by "
+			+ " level asc, hit desc limit :page, :size", nativeQuery = true)
+	List<Word> findByUserId4(@Param("id") Long userId,
+			@Param("articleId") Long articleId, @Param("page") int page,
+			@Param("size") int size); // ,, @Param("sidx")
+										// String sidx,
 
 	// @Query(value = "select count(*)  from ("
 	// +
@@ -100,4 +113,12 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 			+ "	group by w.id "
 			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id   ", nativeQuery = true)
 	Long getWordTotalCount(@Param("id") Long userId);
+
+	@Query(value = "select count(*) from ("
+			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
+			+ " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
+			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
+			+ "	group by w.id "
+			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id   ", nativeQuery = true)
+	Long getWordTotalCount2(@Param("id") Long userId, @Param("articleId") Long articleId);
 }

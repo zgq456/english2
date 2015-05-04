@@ -18,47 +18,49 @@ package sample.data.jpa.domain;
 
 import java.io.Serializable;
 
-public class QuizRating implements Serializable {
+public class SenBean implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private String email;
-	private String nickname;
-	private double rate;
+	private Long id;
 
-	public QuizRating(String email, String nickname, double rate) {
+	private String content;
+
+	private String usefulFlag = "No";
+
+	public SenBean(Long id, String content, String usefulFlag) {
 		super();
-		this.email = email;
-		this.nickname = nickname;
-		this.rate = rate;
+		this.id = id;
+		this.content = content;
+		this.usefulFlag = usefulFlag;
 	}
 
-	public String getNickname() {
-		return this.nickname;
+	public Long getId() {
+		return this.id;
 	}
 
-	public void setNickname(String nickname) {
-		this.nickname = nickname;
+	public void setId(Long id) {
+		this.id = id;
 	}
 
-	public void setEmail(String email) {
-		this.email = email;
+	public String getContent() {
+		return this.content;
 	}
 
-	public void setRate(double rate) {
-		this.rate = rate;
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public String getUsefulFlag() {
+		return this.usefulFlag;
+	}
+
+	public void setUsefulFlag(String usefulFlag) {
+		this.usefulFlag = usefulFlag;
 	}
 
 	public static long getSerialversionuid() {
 		return serialVersionUID;
-	}
-
-	public String getEmail() {
-		return this.email;
-	}
-
-	public double getRate() {
-		return this.rate;
 	}
 
 }

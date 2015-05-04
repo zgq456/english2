@@ -29,7 +29,7 @@ import javax.persistence.OneToMany;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
-@JsonIgnoreProperties({ "groups", "articles", "users" })
+@JsonIgnoreProperties({ "groups", "articles", "users", "qrList" })
 public class Word implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -83,6 +83,10 @@ public class Word implements Serializable {
 	@Column
 	private Long tempUserId;
 
+	// @Transient
+	@Column
+	private String tempInterest;
+
 	/**
 	 * 1 ��ʾԭ��
 	 */
@@ -90,6 +94,30 @@ public class Word implements Serializable {
 	private int mark;
 
 	public Word() {
+	}
+
+	public List<QuizResult> getQrList() {
+		return this.qrList;
+	}
+
+	public void setQrList(List<QuizResult> qrList) {
+		this.qrList = qrList;
+	}
+
+	public void setLevel(Integer level) {
+		this.level = level;
+	}
+
+	public String getTempInterest() {
+		return this.tempInterest;
+	}
+
+	public void setTempInterest(String tempInterest) {
+		this.tempInterest = tempInterest;
+	}
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
 	}
 
 	public Long getId() {

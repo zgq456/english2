@@ -89,7 +89,7 @@
 								datatype : "json",
 								url : "../../getQuizList",
 								height : 400,
-								colNames : [ 'ID', '名称', '操作', 'psw' ],
+								colNames : [ 'ID', '名称', '得分', '操作', 'psw' ],
 								colModel : [ {
 									name : 'id',
 									index : 'id',
@@ -110,6 +110,11 @@
 								// 				{name:'remark',index:'remark', width:150, sortable:false,editable: true,edittype:"textarea", editoptions:{rows:"2",cols:"10"}} ,
 								// 				{name:'author.name',index:'author.name', width:150, sortable:true,editable: false} ,
 								{
+									name : 'rate',
+									index : 'rate',
+									sortable : false,
+									width : 90
+								},{
 									name : 'act',
 									index : 'act',
 									sortable : false,
@@ -122,7 +127,7 @@
 								} ],
 
 								viewrecords : true,
-								rowNum : 10,
+								rowNum : 30,
 								rowList : [ 10, 20, 30 ],
 								pager : pager_selector,
 								altRows : true,
@@ -153,12 +158,38 @@
 										console.log("#rowData:" + rowData.password);
 										viewBtnHtml = "<input  type='button' class='btn btn-info' value='查看' onclick=\"viewQuiz('"
 												+ cl + "', '" + rowData.password + "');\"  />";
+										rateHtml = "<span name='rateSpan' id='" + cl + "'></span>";
 										jQuery("#grid-table").jqGrid(
 												'setRowData',
 												ids[i],
 												{
-													act : viewBtnHtml
+													act : viewBtnHtml,
+													rate : rateHtml
 												});
+									}
+									
+									var rateSpans = $("span[name=rateSpan]");
+									for(var i = 0; i < rateSpans.length; i++) {
+										var oneRateSpan = $(rateSpans[i]); 
+										var quizId = oneRateSpan.attr("id");
+										console.log("quizId:" + quizId);
+										$.ajax({
+											type : "POST",
+											url : "../../getRateForQuiz",
+											data : {
+												qId : quizId 
+											},
+											async : false,
+											dataType : "text",
+											success : function(data) {
+												console.log("data:" + data);
+												oneRateSpan.html(toDecimal(data));
+											},
+											error : function(data) {
+												alert("set error, please contact administrator");
+											}
+
+										});
 									}
 								},
 								

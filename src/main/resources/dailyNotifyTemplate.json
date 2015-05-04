@@ -1,0 +1,28 @@
+      {
+           "touser":"REPLACE_TO_USER",
+           "template_id":"FsfzbGH18Vrh4ATzCnDKDJYwN4eZbtOhPWOdx-0Nkko",
+           "url":"REPLACE_URL",
+           "topcolor":"#FF0000",
+           "data":{
+                   "first": {
+                       "value":"REPLACE_TITLE",
+                       "color":"#173177"
+                   },
+                   "keyword1":{
+                       "value":"REPLACE_GOODS",
+                       "color":"#173177"
+                   },
+                   "keyword2": {
+                       "value":"REPLACE_PRICE",
+                       "color":"#173177"
+                   },
+                   "keyword3": {
+                       "value":"REPLACE_DATE",
+                       "color":"#173177"
+                   },
+                   "remark":{
+                       "value":"REPLACE_REMARK",
+                       "color":"#173177"
+                   }
+           }
+       }

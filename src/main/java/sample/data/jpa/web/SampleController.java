@@ -18,20 +18,23 @@ package sample.data.jpa.web;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -40,12 +43,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.ModelAndView;
 
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
+import sample.data.jpa.domain.SenBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
 import sample.data.jpa.domain.User;
@@ -55,9 +58,9 @@ import sample.data.jpa.service.CityService;
 import sample.data.jpa.service.JqGridData;
 import sample.data.jpa.service.MyConstants;
 import sample.data.jpa.service.UserServiceImpl;
-import sample.data.jpa.weixin.WeiXinUser;
 
 @Controller
+@EnableScheduling
 public class SampleController {
 
 	@Autowired
@@ -69,6 +72,45 @@ public class SampleController {
 	@Autowired
 	private ArticleServiceImpl articleService;
 
+	// @Scheduled(fixedDelay = 2 * 60000)
+	@Scheduled(cron = "0 0 * * * ?")
+	public void dailyNotify() {
+		System.out.println("dailyNotify invoke "
+				+ new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+
+		String accessToken = getAccessToken();
+
+		this.articleService.sendMsg(accessToken);
+
+	}
+
+	private String getAccessToken() {
+		String accessToken = null;
+		WebDriver driver = new HtmlUnitDriver();
+		String url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxad1e1211d18cd79d&secret=4a5a2aa472e9cc890b896623c2c2facf";
+		driver.get(url);
+		String pageSource = driver.getPageSource();
+		try {
+			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+		System.out.println("pageSource:" + pageSource);
+		try {
+			JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
+			accessToken = (String) json.get("access_token");
+			System.out.println("access_token:" + accessToken);
+			System.out.println("expires_in:" + json.get("expires_in"));
+		}
+		catch (ParseException e) {
+			throw new RuntimeException(e);
+		}
+		return accessToken;
+	}
+
+	@RequestMapping("/getUser")
+	@ResponseBody
 	public User getUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		User user = null;
@@ -83,100 +125,17 @@ public class SampleController {
 		return user;
 	}
 
+	@RequestMapping("/bindAccount")
+	@ResponseBody
+	public String bindAccount(String emailBind, String passwordBind) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		String openId = auth.getName();
+		return this.userService.bindAccount(emailBind, passwordBind, openId);
+	}
+
 	public long getUserId() {
 		User user = getUser();
 		return user == null ? -1 : user.getId();
-	}
-
-	@RequestMapping("/weixinLogin")
-	public ModelAndView weixinLogin(HttpServletRequest request,
-			HttpServletResponse response) throws Exception {
-		WeiXinUser wxUser = null;
-		boolean isDebug = true; // FIXME
-
-		if (!isDebug) {
-			String code = request.getParameter("code"); // eg:
-			// 021ecbe7535641f4a56b89a075df303l
-			String state = request.getParameter("state"); // eg: 123
-
-			System.out.println("code:" + code + " state:" + state);
-			String appId = "wxad1e1211d18cd79d";
-			String secret = "4a5a2aa472e9cc890b896623c2c2facf";
-
-			// 第二步：通过code换取网页授权access_token
-			String[] tokenInfo = getAccessToken(code, appId, secret);
-			String accessToken = tokenInfo[0];
-			String openId = tokenInfo[1];
-
-			wxUser = getWeiXinUser(accessToken, openId);
-		}
-		else {
-			wxUser = new WeiXinUser();
-			wxUser.setOpenId("aaaaaaaaabbbbbbbbb");
-			wxUser.setNickname("猴猴");
-		}
-
-		User user = this.articleService.updateUserInDB(wxUser);
-		UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-				user.getOpenId(), user, user.getAuthorities());
-		auth.setDetails(MyConstants.TERMINAL_WEIXIN);
-		SecurityContextHolder.getContext().setAuthentication(auth);
-		return new ModelAndView("redirect:/html/ajax/ajax.html#page/articles");
-	}
-
-	/**
-	 * @param accessToken
-	 * @param openId
-	 * @return
-	 */
-	private WeiXinUser getWeiXinUser(String accessToken, String openId) throws Exception {
-		String url = "https://api.weixin.qq.com/sns/userinfo?access_token=" + accessToken
-				+ "&openid=" + openId + "&lang=zh_CN";
-		System.out.println("getWeiXinUser url:" + url);
-		WebDriver driver = new HtmlUnitDriver();
-		driver.get(url);
-		String pageSource = driver.getPageSource();
-		pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
-		System.out.println("pageSource:" + pageSource);
-
-		// JsonElement jsonElm = new JsonParser().parse(pageSource);
-		JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
-
-		WeiXinUser wxUser = new WeiXinUser();
-		wxUser.setOpenId((String) json.get("openid"));
-		wxUser.setNickname((String) json.get("nickname"));
-		wxUser.setSex(((Long) json.get("sex")).intValue());
-		wxUser.setProvince((String) json.get("province"));
-		wxUser.setCity((String) json.get("city"));
-		wxUser.setCountry((String) json.get("country"));
-		wxUser.setHeadimgurl((String) json.get("headimgurl"));
-		System.out.println("wxUser:" + wxUser);
-		return wxUser;
-	}
-
-	private String[] getAccessToken(String code, String appId, String secret)
-			throws Exception {
-		String getAccessTokenUrl = "https://api.weixin.qq.com/sns/oauth2/access_token?appid="
-				+ appId
-				+ "&secret="
-				+ secret
-				+ "&code="
-				+ code
-				+ "&grant_type=authorization_code";
-
-		WebDriver driver = new HtmlUnitDriver();
-		driver.get(getAccessTokenUrl);
-		String pageSource = driver.getPageSource();
-		pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
-		System.out.println("pageSource:" + pageSource);
-		JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
-		String accessToken = (String) json.get("access_token");
-		String refreshToken = (String) json.get("refresh_token");
-		String openId = (String) json.get("openid");
-		System.out.println("accessToken:" + accessToken);
-		System.out.println("refreshToken:" + refreshToken);
-		System.out.println("openid:" + openId);
-		return new String[] { accessToken, openId };
 	}
 
 	@RequestMapping("/getUserName")
@@ -197,6 +156,28 @@ public class SampleController {
 		}
 	}
 
+	@RequestMapping("/updateUserReminder")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String updateUserReminder(String reminderVal) {
+		User user = getUser();
+		this.userService.updateUserReminder(user, reminderVal);
+		return "";
+	}
+
+	// @RequestMapping("/getUserHeaderImg")
+	// @ResponseBody
+	// @Transactional(readOnly = true)
+	// public String getUserHeaderImg() {
+	// User user = getUser();
+	// if (user == null) {
+	// return "";
+	// }
+	// else {
+	// return user.getHeadimgurl();
+	// }
+	// }
+
 	@RequestMapping("/")
 	@ResponseBody
 	@Transactional(readOnly = true)
@@ -211,6 +192,16 @@ public class SampleController {
 	@ResponseBody
 	@Transactional(readOnly = true)
 	public String getArticleList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<Article> gridDataList = this.articleService.getArticleList(
+				getUserId(), rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getArticleList2")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getArticleList2(HttpServletRequest request, int rows, int page,
 			String sidx, String sord) {
 		JqGridData<Article> gridDataList = this.articleService.getArticleList(
 				getUserId(), rows, page, sidx, sord);
@@ -250,12 +241,31 @@ public class SampleController {
 		return gridDataList.getJsonString();
 	}
 
+	@RequestMapping("/getSenList2")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getSenList2(HttpServletRequest request, int rows, int page,
+			String sidx, String sord, long articleId) {
+		JqGridData<SenBean> gridDataList = this.articleService.getSenList2(articleId,
+				getUserId(), rows, page);
+		return gridDataList.getJsonString();
+	}
+
 	@RequestMapping("/getSenListForSubGrid")
 	@ResponseBody
 	@Transactional(readOnly = true)
 	public String getSenListForSubGrid(Long wordId) {
 		JqGridData<Sentence> gridDataList = this.articleService.getSenListForSubGrid(
 				wordId, getUserId());
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getSenListForSubGrid2")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getSenListForSubGrid2(Long wordId, Long articleId) {
+		JqGridData<Sentence> gridDataList = this.articleService.getSenListForSubGrid2(
+				wordId, articleId, getUserId());
 		return gridDataList.getJsonString();
 	}
 
@@ -269,6 +279,16 @@ public class SampleController {
 		return gridDataList.getJsonString();
 	}
 
+	@RequestMapping("/getWordList2")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getWordList2(HttpServletRequest request, long articleId, int rows,
+			int page, String sidx, String sord) {
+		JqGridData<Word> gridDataList = this.articleService.getWordList2(getUserId(),
+				articleId, rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
 	// @RequestParam("file") MultipartFile file,
 
 	@RequestMapping("/addOrUpdateArticle")
@@ -276,6 +296,35 @@ public class SampleController {
 	public String addOrUpdateArticle(String id, String name, String openFlag,
 			String hideFlag, String remark, String type, String url, String oper,
 			String stringText) {
+		Article article = new Article();
+		article.setName(name);
+		if ("on".equals(openFlag)) {
+			openFlag = "Yes";
+		}
+		else if ("off".equals(openFlag)) {
+			openFlag = "No";
+		}
+		// hideFlag = "on".equals(hideFlag) ? "Yes" : "No";
+		article.setOpenFlag(openFlag);
+		article.setHideFlag(hideFlag);
+		article.setRemark(remark);
+		article.setType(type);
+		article.setUrl(url);
+		this.articleService.saveOrUpdate(id, article, oper, getUserId(), stringText);
+		return "";
+	}
+
+	@RequestMapping("/deleteArticle")
+	@ResponseBody
+	public String deleteArticle(String id) {
+		String name = null;
+		String openFlag = null;
+		String hideFlag = null;
+		String remark = null;
+		String type = null;
+		String url = null;
+		String oper = "del";
+		String stringText = null;
 		Article article = new Article();
 		article.setName(name);
 		if ("on".equals(openFlag)) {
@@ -327,7 +376,7 @@ public class SampleController {
 	@RequestMapping("/updateRank")
 	@ResponseBody
 	public String updateRank(Long id, int rank) {
-		this.articleService.updateRank(id, getUserId(), rank);
+		this.articleService.updateInterest(id, getUserId(), rank);
 		return "1";
 	}
 
@@ -344,7 +393,7 @@ public class SampleController {
 		if (userId == 0) {
 			return "0";
 		}
-		this.articleService.updateRank(wordId, userId, forkValue);
+		this.articleService.updateInterest(wordId, userId, forkValue);
 		return "1";
 	}
 
@@ -414,6 +463,12 @@ public class SampleController {
 		return this.articleService.getRateListForQuiz(qId);
 	}
 
+	@RequestMapping("/getRateForQuiz")
+	@ResponseBody
+	public double getRateForQuiz(long qId) {
+		return this.articleService.getRateForQuiz(qId, getUserId());
+	}
+
 	@RequestMapping("/getWordListForQuiz2")
 	@ResponseBody
 	public List<QuizWordBean> getWordListForQuiz2(long id, String password) {
@@ -438,8 +493,8 @@ public class SampleController {
 
 	@RequestMapping("/ignoreWord")
 	@ResponseBody
-	public String ignoreWord(long wordId) {
-		return this.articleService.ignoreWord(wordId, getUserId());
+	public String ignoreWord(long wordId, long days) {
+		return this.articleService.ignoreWord(wordId, days, getUserId());
 
 	}
 	// String name = "test_" + new Date() + ".txt";

@@ -53,6 +53,9 @@ public class User implements Serializable {
 	private String email;
 
 	@Column
+	private String bindRemind = "Y";
+
+	@Column
 	private String password;
 
 	@Column(nullable = true)
@@ -84,6 +87,9 @@ public class User implements Serializable {
 
 	@Column(nullable = true)
 	private int sex = -1;
+
+	@Column(nullable = true)
+	private String wxRemiderHour = "";
 
 	@Column(nullable = true)
 	private String province;
@@ -127,6 +133,14 @@ public class User implements Serializable {
 	public User() {
 	}
 
+	public String getWxRemiderHour() {
+		return this.wxRemiderHour;
+	}
+
+	public void setWxRemiderHour(String wxRemiderHour) {
+		this.wxRemiderHour = wxRemiderHour;
+	}
+
 	public List<UserArticleForkAsso> getForkArticles() {
 		return this.forkArticles;
 	}
@@ -141,6 +155,14 @@ public class User implements Serializable {
 
 	public void setOpenId(String openId) {
 		this.openId = openId;
+	}
+
+	public String getBindRemind() {
+		return this.bindRemind;
+	}
+
+	public void setBindRemind(String bindRemind) {
+		this.bindRemind = bindRemind;
 	}
 
 	public String getNickname() {

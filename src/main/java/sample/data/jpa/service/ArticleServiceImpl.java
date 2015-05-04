@@ -18,7 +18,9 @@ package sample.data.jpa.service;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -34,20 +36,30 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.apache.tika.Tika;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.security.authentication.encoding.Md5PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import sample.data.jpa.conf.MyFilter;
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.ArticleWordAsso;
 import sample.data.jpa.domain.Quiz;
@@ -55,6 +67,7 @@ import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizResult;
 import sample.data.jpa.domain.QuizWordBean;
+import sample.data.jpa.domain.SenBean;
 import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
 import sample.data.jpa.domain.User;
@@ -88,6 +101,9 @@ public class ArticleServiceImpl {
 	private final UserSenAssoRepository userSenAssoRepository;
 	private final UserWordAssoRepository userWordAssoRepository;
 	@Autowired
+	private Md5PasswordEncoder passwordEncoder;
+
+	@Autowired
 	UserArticleForkAssoRepository userArticleForkAssoRepository;
 	@Autowired
 	QuizRepository quizRepository;
@@ -114,6 +130,11 @@ public class ArticleServiceImpl {
 		this.userWordAssoRepository = userWordAssoRepository;
 	}
 
+	@Bean
+	public Md5PasswordEncoder passwordEncoder() {
+		return new Md5PasswordEncoder();
+	}
+
 	/**
 	 * get for custom quiz
 	 * @param id
@@ -122,7 +143,8 @@ public class ArticleServiceImpl {
 	public List<QuizWordBean> getWordListForQuiz2(long quizId, String password) {
 		Quiz quiz = this.quizRepository.findOne(quizId);
 		if (StringUtils.isNotEmpty(quiz.getPassword())) {
-			if (!quiz.getPassword().equals(password)) {
+			if (!quiz.getPassword().equals(
+					this.passwordEncoder.encodePassword(password, null))) {
 				return new ArrayList<QuizWordBean>();
 			}
 		}
@@ -147,10 +169,10 @@ public class ArticleServiceImpl {
 
 	public List<QuizWordBean> getWordListFromQuizResult(long userId, Set<Long> wordIdSet,
 			AtomicInteger startQuesIndex) {
-		String sql = "SELECT qr.word_id, w.value, w.explain2, 5 rank, w.mark, sum(qr.is_right) right_count, min(qr.last_upt) last_upt"
+		String sql = "SELECT qr.word_id, w.value, w.explain2, 5 rank, w.mark, sum(qr.is_right) right_count, max(qr.last_upt) last_upt"
 				+ " FROM quiz_result qr, word w where qr.word_id = w.id and qr.user_id = ? "
 				+ " group by qr.word_id having  sum(qr.is_right) < 7 order by right_count asc ";
-		System.out.println("begin getWordListFromQuizResult " + new Date());
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
 		List<QuizWordBean> results2 = new ArrayList<QuizWordBean>();
 		List<QuizWordBean> results = this.jdbcTemplate.query(sql,
 				new Object[] { userId }, new RowMapper<QuizWordBean>() {
@@ -188,7 +210,7 @@ public class ArticleServiceImpl {
 			}
 		}
 
-		System.out.println("begin generateQuestion " + new Date());
+		// System.out.println("begin generateQuestion " + new Date());
 		generateQuestion(userId, results2, MyConstants.FREE_QUIZ, startQuesIndex, null);
 
 		// return results.size() > 10 ? results.subList(0, 10) : results; // FIXME
@@ -201,6 +223,7 @@ public class ArticleServiceImpl {
 	 * @return
 	 */
 	public List<QuizWordBean> getWordListForQuiz(long userId) {
+		System.out.println("###begin getWordListForQuiz " + new Date());
 		int pageSize = 10;
 		AtomicInteger startQuesIndex = new AtomicInteger();
 		startQuesIndex.set(-1);
@@ -210,20 +233,28 @@ public class ArticleServiceImpl {
 				startQuesIndex);
 		results.addAll(resultsFromQR);
 
+		System.out.println("###begin get data from UWA " + new Date());
 		// generateQuestion(userId, results, MyConstants.FREE_QUIZ, startQuesIndex);
 
 		int startIndex = 0;
 		do {
 			if (results.size() < pageSize) {
 
-				String sql = "SELECT word_id, value,  explain2, uwa.rank, w.mark "
-						+ "  FROM user_word_asso uwa, word w, user u "
-						+ " where uwa.word_id = w.id and u.id = uwa.user_id and u.id = ? "
-						+ " and uwa.rank != -1 "
+				// String sql = "SELECT word_id, value,  explain2, uwa.rank, w.mark "
+				// + "  FROM user_word_asso uwa, word w, user u "
+				// + " where uwa.word_id = w.id and u.id = uwa.user_id and u.id = ? "
+				// + " and uwa.rank != -1 "
+				// +
+				// " and w.id not in (select distinct word_id from quiz_result where user_id = ?) "
+				// + " order by rank desc, mark asc limit " + startIndex + ", 50";
+				String sql = "select w.id word_id, w.value, w.explain2, w.mark, uwa.rank, count(*) myhit from"
+						+ " user u, user_article_fork_asso uafa, article_word_asso awa, word w, user_word_asso uwa "
+						+ " where u.id = uafa.user_id and uwa.word_id = w.id  and u.id = uwa.user_id and u.id = ? and uwa.interest = 1 "
 						+ " and w.id not in (select distinct word_id from quiz_result where user_id = ?) "
-						+ " order by rank desc, mark asc limit " + startIndex + ", 50";
+						+ " and awa.article_id = uafa.article_id and w.id = awa.word_id group by w.id order by rank desc,  myhit desc"
+						+ " limit " + startIndex + ", 50";
 				startIndex += 50;
-				System.out.println("begin getWordListForQuiz " + new Date());
+				// System.out.println("begin getWordListForQuiz " + new Date());
 				List<QuizWordBean> resultsFromUWA = this.jdbcTemplate.query(sql,
 						new Object[] { userId, userId }, new RowMapper<QuizWordBean>() {
 							@Override
@@ -239,7 +270,7 @@ public class ArticleServiceImpl {
 					break;
 				}
 
-				System.out.println("begin generateQuestion " + new Date());
+				// System.out.println("begin generateQuestion " + new Date());
 				generateQuestion(userId, resultsFromUWA, MyConstants.FREE_QUIZ,
 						startQuesIndex, wordIdSet);
 
@@ -256,26 +287,37 @@ public class ArticleServiceImpl {
 			}
 		}
 		while (results.size() < pageSize);
-
+		System.out.println("###finish getWordListForQuiz " + new Date());
 		return results.size() > pageSize ? results.subList(0, pageSize) : results; // FIXME
 	}
 
 	public List<QuizRating> getRateListForQuiz(long quizId) {
-		String sql = "SELECT  u.email, (sum(qr.is_right)/count(*)) * 100  rate FROM quiz_result qr, user u "
+		String sql = "SELECT  u.email, u.nickname, (sum(qr.is_right)/count(*)) * 100  rate FROM quiz_result qr, user u "
 				+ " where qr.user_id = u.id and qr.quiz_id = ? "
 				+ " group by qr.user_id  order by rate desc, qr.last_upt asc limit 0, 20";
 
-		System.out.println("begin getRateListForQuiz " + new Date());
+		// System.out.println("begin getRateListForQuiz " + new Date());
 		List<QuizRating> results = this.jdbcTemplate.query(sql, new Object[] { quizId },
 				new RowMapper<QuizRating>() {
 					@Override
 					public QuizRating mapRow(ResultSet rs, int rowNum)
 							throws SQLException {
-						return new QuizRating(rs.getString("email"), rs.getDouble("rate"));
+						return new QuizRating(rs.getString("email"), rs
+								.getString("nickname"), rs.getDouble("rate"));
 					}
 				});
 
 		return results;
+	}
+
+	public double getRateForQuiz(long quizId, long userId) {
+		String sql = "SELECT  (sum(qr.is_right)/count(*)) * 100  rate FROM quiz_result qr, user u "
+				+ " where qr.user_id = u.id and qr.quiz_id = ? and u.id = ?  ";
+
+		// System.out.println("begin getRateListForQuiz " + new Date());
+		Double rate = this.jdbcTemplate.queryForObject(sql,
+				new Object[] { quizId, userId }, Double.class);
+		return rate == null ? 0 : rate.doubleValue();
 	}
 
 	private void generateQuestion(long userId, List<QuizWordBean> results, int mode,
@@ -283,6 +325,30 @@ public class ArticleServiceImpl {
 		for (int i = 0; i < results.size(); i++) {
 			QuizWordBean qwb = results.get(i);
 			Word word = this.wordRepository.findOne(qwb.getWordId());
+			UserWordAsso uwa = this.userWordAssoRepository.findByUserIdAndWordId(userId,
+					word.getId());
+			boolean isEffective = true;
+
+			if (uwa != null) {
+				String effDateStr = uwa.getEffectDate();
+				String currDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+						.format(new Date());
+				// System.out.println("effDateStr:" + effDateStr);
+				// System.out.println("currDateStr:" + currDateStr);
+				if (StringUtils.isEmpty(effDateStr)) {
+					isEffective = true;
+				}
+				else {
+					isEffective = currDateStr.compareTo(effDateStr) >= 0; // FIXME?
+				}
+
+				// if (uwa.getRank() <= 1) {
+				// isEffective = false;
+				// }
+			}
+
+			// System.out.println("isEffective:" + isEffective + " for word:"
+			// + word.getValue());
 			List<Sentence> senList = new ArrayList<Sentence>();
 			if (mode == MyConstants.FREE_QUIZ) {
 				senList = this.sentenceRepository.findForQuiz(userId, "% "
@@ -303,6 +369,10 @@ public class ArticleServiceImpl {
 				i--;
 			}
 			else if (wordIdSet != null && wordIdSet.contains(word.getId())) {
+				results.remove(i);
+				i--;
+			}
+			else if (!isEffective) {
 				results.remove(i);
 				i--;
 			}
@@ -328,8 +398,8 @@ public class ArticleServiceImpl {
 							sentence2 += "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input' class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> "
-									+ "ing" + " ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + " /> " + "ing" + " ";
 						}
 						else if (words[j].toLowerCase().endsWith("es")) {
 							answer = words[j].substring(0, words[j].length() - 2);
@@ -337,8 +407,8 @@ public class ArticleServiceImpl {
 							sentence2 += "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input'  class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> "
-									+ "es" + " ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + " /> " + "es" + " ";
 						}
 						else if (words[j].toLowerCase().endsWith("s")) {
 							answer = words[j].substring(0, words[j].length() - 1);
@@ -346,8 +416,8 @@ public class ArticleServiceImpl {
 							sentence2 += "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input'  class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> "
-									+ "s" + " ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + "/> " + "s" + " ";
 						}
 						else if (words[j].toLowerCase().endsWith("ed")) {
 							answer = words[j].substring(0, words[j].length() - 2);
@@ -355,8 +425,8 @@ public class ArticleServiceImpl {
 							sentence2 += "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input'  class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> "
-									+ "ed" + " ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + " /> " + "ed" + " ";
 						}
 						else if (words[j].toLowerCase().endsWith("d")) {
 							answer = words[j].substring(0, words[j].length() - 1);
@@ -364,8 +434,8 @@ public class ArticleServiceImpl {
 							sentence2 += "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input'  class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> "
-									+ "d" + " ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + " /> " + "d" + " ";
 						}
 						else { // if (qwb.getMark() == MyConstants.ORIGINAL_TENSE)
 							answer = words[j].substring(1);
@@ -374,7 +444,8 @@ public class ArticleServiceImpl {
 									+ "<input id='input"
 									+ startQuesIndexInt
 									+ "' type='input'  class='input-answer' onKeyUp='checkAnswer("
-									+ startQuesIndexInt + ", " + blankCount + ")' /> ";
+									+ startQuesIndexInt + ", " + blankCount
+									+ ")' maxlength=" + blankCount + " /> ";
 						}
 						isFound = true;
 					}
@@ -396,11 +467,11 @@ public class ArticleServiceImpl {
 		String type = article.getType();
 
 		String articleName = article.getName();
-		System.out.println("###name:" + articleName);
+		// System.out.println("###name:" + articleName);
 		// String filePath = "readme.txt";
 		File uploadDir = new File("uploadFiles");
 		File articlePath = new File(uploadDir + File.separator + userId, articleName);
-		System.out.println("articlePath:" + articlePath.getAbsolutePath());
+		// System.out.println("articlePath:" + articlePath.getAbsolutePath());
 		InputStream stream = null;
 		try {
 			String content = null;
@@ -424,10 +495,18 @@ public class ArticleServiceImpl {
 				HtmlUnitDriver driver = new HtmlUnitDriver();
 				driver.get(article.getUrl());
 				String pageSource = driver.getPageSource();
+				// try {
+				// pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+				// }
+				// catch (UnsupportedEncodingException e) {
+				// throw new UnsupportedOperationException("Auto-generated method stub",
+				// e);
+				// }
+				System.out.println("###pageSource1:" + pageSource);
 				driver.close();
 				File tempFile = new File("uploadFiles/tmp/" + System.currentTimeMillis()
 						+ ".txt");
-				FileUtils.writeStringToFile(tempFile, pageSource);
+				FileUtils.writeStringToFile(tempFile, pageSource, "UTF-8");
 				stream = new FileInputStream(tempFile);
 				content = tika.parseToString(stream);
 			}
@@ -442,12 +521,12 @@ public class ArticleServiceImpl {
 			System.out.println("###content:" + content);
 
 			File tempFile = new File(uploadDir, System.currentTimeMillis() + ".txt");
-			FileUtils.writeStringToFile(tempFile, content);
+			FileUtils.writeStringToFile(tempFile, content, "UTF-8");
 			// option #1: By sentence.
 			DocumentPreprocessor dp = new DocumentPreprocessor(tempFile.getAbsolutePath());
 			final Set<Sentence> sentencesSet = new HashSet<Sentence>();
 			final List<ArticleWordAsso> awaList = new ArrayList<ArticleWordAsso>();
-			System.out.println("begin parse sentence");
+			// System.out.println("begin parse sentence");
 			// ExecutorService exec = Executors.newFixedThreadPool(1); // FIXME
 			for (List sentence : dp) {
 				final List sentenceFinal = sentence;
@@ -461,12 +540,12 @@ public class ArticleServiceImpl {
 
 			// exec.shutdown();
 			// exec.awaitTermination(1, TimeUnit.DAYS);
-			System.out.println("begin save  ArticleWordAsso");
+			// System.out.println("begin save  ArticleWordAsso");
 			for (ArticleWordAsso awa : awaList) {
 				this.articleWordAssoRepository.save(awa);
 			}
 
-			System.out.println("###parse done");
+			// System.out.println("###parse done");
 			article.setSentences(sentencesSet);
 			this.articleRepository.save(article);
 		}
@@ -482,7 +561,7 @@ public class ArticleServiceImpl {
 
 	private void parseSentence(Article article, long userId, Set<Sentence> sentencesSet,
 			List sentence, List<ArticleWordAsso> awaList) {
-		System.out.println("###sentence:" + sentence);
+		// System.out.println("###sentence:" + sentence);
 		String sentenceStr = "";
 		for (int i = 0; i < sentence.size(); i++) {
 			Object oneWord = sentence.get(i);
@@ -555,6 +634,9 @@ public class ArticleServiceImpl {
 
 		}
 		Sentence oneSentence = new Sentence();
+		sentenceStr = sentenceStr.replace("-LRB-", "(");
+		sentenceStr = sentenceStr.replace("-RRB-", ")");
+		sentenceStr = sentenceStr.replace("Â¡Â¯", "'");
 		oneSentence.setContent(" " + sentenceStr + " ");
 		oneSentence.setArticle(article);
 		oneSentence.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -566,7 +648,7 @@ public class ArticleServiceImpl {
 	public void test() {
 		Article article = this.articleRepository.findOne(6L);
 		for (Sentence oldSen : article.getSentences()) {
-			System.out.println("###remove oldSen:" + oldSen.getId());
+			// System.out.println("###remove oldSen:" + oldSen.getId());
 			this.sentenceRepository.delete(oldSen.getId());
 		}
 	}
@@ -579,7 +661,7 @@ public class ArticleServiceImpl {
 		Set<Sentence> sentences = article.getSentences();
 		if (sentences != null) {
 			for (Sentence oldSen : sentences) {
-				System.out.println("###remove oldSen:" + oldSen.getId());
+				// System.out.println("###remove oldSen:" + oldSen.getId());
 				this.userSenAssoRepository.deleteBySenId(oldSen.getId());
 				this.sentenceRepository.delete(oldSen.getId());
 			}
@@ -588,7 +670,7 @@ public class ArticleServiceImpl {
 		List<ArticleWordAsso> words = article.getWords();
 		if (words != null) {
 			for (ArticleWordAsso oldAwa : words) {
-				System.out.println("###remove oldAwa:" + oldAwa);
+				// System.out.println("###remove oldAwa:" + oldAwa);
 				this.articleWordAssoRepository.delete(oldAwa);
 			}
 		}
@@ -630,6 +712,26 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
+	public JqGridData<Article> getArticleList2(long userId, int rows, int currPage,
+			String sidx, String sord) {
+		if (StringUtils.isEmpty(sidx)) {
+			sidx = "id";
+			sord = "desc";
+		}
+		List<Article> articleList = this.articleRepository.findByUserId(
+				userId,
+				new PageRequest(currPage - 1, rows, "asc".equals(sord) ? Direction.ASC
+						: Direction.DESC, sidx)).getContent();
+		long totalCount = this.articleRepository.getUserTotalCount(userId);
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<Article> gridData = new JqGridData<Article>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, articleList);
+		return gridData;
+	}
+
 	public JqGridData<Quiz> getQuizList(int rows, int currPage, String sidx, String sord) {
 		if (StringUtils.isEmpty(sidx)) {
 			sidx = "hot";
@@ -645,9 +747,9 @@ public class ArticleServiceImpl {
 		for (int i = 0; i < quizSize; i++) {
 			Quiz quiz = quizList.get(i);
 			if (quiz.getDeleteFlag() != 1) {
-				if (StringUtils.isNotEmpty(quiz.getPassword())) {
-					quiz.setPassword("*******");
-				}
+				// if (StringUtils.isNotEmpty(quiz.getPassword())) {
+				// quiz.setPassword("*******");
+				// }
 				quizList2.add(quiz);
 			}
 		}
@@ -668,7 +770,8 @@ public class ArticleServiceImpl {
 		if (StringUtils.isEmpty(quiz.getPassword())) {
 			return quiz;
 		}
-		else if (StringUtils.equals(quiz.getPassword(), password)) {
+		else if (StringUtils.equals(quiz.getPassword(),
+				this.passwordEncoder.encodePassword(password, null))) {
 			return quiz;
 		}
 		else {
@@ -703,10 +806,72 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
+	/**
+	 * @param userId
+	 * @param rows
+	 * @param page
+	 * @return
+	 */
+	public JqGridData<SenBean> getSenList2(long articleId, long userId, int rows,
+			int currPage) {
+		// List<SenSummary> senList = this.sentenceRepository.findByArticleUserId2(
+		// articleId,
+		// userId,
+		// new PageRequest(currPage - 1, rows, "asc".equals(sord) ? Direction.ASC
+		// : Direction.DESC, sidx)).getContent();
+
+		String sql = "select sen.id, sen.content, usa.useful_flag "
+				+ " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
+				+ "   join article a where "
+				+ " sen.article_id=a.id and a.user_id= ? and a.delete_flag<>1 "
+				+ " and a.hide_flag='No' "
+				+ " and sen.article_id= ? order by sen.id asc limit " + (currPage - 1)
+				* 10 + ", " + rows;
+		String countSql = "select count(*) "
+				+ " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
+				+ "   join article a where "
+				+ " sen.article_id=a.id and a.user_id= ? and a.delete_flag<>1 "
+				+ " and a.hide_flag='No' " + " and sen.article_id= ?  ";
+		System.out.println("countSql:" + countSql);
+		List<SenBean> senList = this.jdbcTemplate.query(sql, new Object[] { userId,
+				articleId }, new RowMapper<SenBean>() {
+			@Override
+			public SenBean mapRow(ResultSet rs, int rowNum) throws SQLException {
+				return new SenBean(rs.getLong("id"), rs.getString("content"), rs
+						.getString("useful_flag"));
+			}
+		});
+
+		long totalCount = this.jdbcTemplate.queryForObject(countSql, new Object[] {
+				userId, articleId }, Long.class);
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<SenBean> gridData = new JqGridData<SenBean>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, senList);
+		return gridData;
+	}
+
 	public JqGridData<Sentence> getSenListForSubGrid(long wordId, long userId) {
 		Word word = this.wordRepository.findOne(wordId);
 		List<Sentence> senList = this.sentenceRepository.findByArticleUserIdSubGrid(
 				userId, "% " + word.getValue().toLowerCase() + " %");
+		long totalCount = 0;
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = 0;
+
+		long currPage = 0;
+		JqGridData<Sentence> gridData = new JqGridData<Sentence>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, senList);
+		return gridData;
+	}
+
+	public JqGridData<Sentence> getSenListForSubGrid2(long wordId, long articleId,
+			long userId) {
+		Word word = this.wordRepository.findOne(wordId);
+		List<Sentence> senList = this.sentenceRepository.findByArticleUserIdSubGrid2(
+				userId, articleId, "% " + word.getValue().toLowerCase() + " %");
 		long totalCount = 0;
 		long totalNumberOfRecords = totalCount;
 		long totalNumberOfPages = 0;
@@ -763,6 +928,23 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
+	public JqGridData<Word> getWordList2(long userId, long articleId, int rows,
+			int currPage, String sidx, String sord) {
+		// List<WordSummary> wordList = null;
+		List<Word> wordList = null;
+		wordList = this.wordRepository.findByUserId4(userId, articleId, (currPage - 1)
+				* rows, rows);
+
+		long totalCount = this.wordRepository.getWordTotalCount2(userId, articleId);
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<Word> gridData = new JqGridData<Word>(totalNumberOfPages, currPage,
+				totalNumberOfRecords, wordList);
+		return gridData;
+	}
+
 	public synchronized void enhanceWord() {
 		int index = 1;
 		Iterable<Word> wordIt = this.wordRepository.findAll();
@@ -770,13 +952,13 @@ public class ArticleServiceImpl {
 			if (StringUtils.isNotEmpty(word.getExplain2())) {
 				continue;
 			}
-			System.out.println(index++ + ":" + word);
+			// System.out.println(index++ + ":" + word);
 
 			fillWordInfo(word);
 			this.wordRepository.save(word);
 		}
 
-		System.out.println("##enhanceWord done");
+		// System.out.println("##enhanceWord done");
 
 	}
 
@@ -784,7 +966,7 @@ public class ArticleServiceImpl {
 	 * @param word
 	 */
 	public void fillWordInfo(Word word) {
-		System.out.println("fillWordInfo for word:" + word.getValue());
+		// System.out.println("fillWordInfo for word:" + word.getValue());
 		WebDriver driver = new HtmlUnitDriver();
 		String wordVal = word.getValue();
 		driver.get("http://dict.cn/" + wordVal);
@@ -820,7 +1002,7 @@ public class ArticleServiceImpl {
 		}
 
 		pronStr = StringUtils.trim(pronStr);
-		System.out.println("word:" + wordVal + "	expain:" + explain);
+		// System.out.println("word:" + wordVal + "	expain:" + explain);
 		word.setExplain(explain);
 		word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 		word.setPron(pronStr);
@@ -861,8 +1043,8 @@ public class ArticleServiceImpl {
 					this.articleRepository.save(article);
 				}
 				else {
-					System.out.println("you don't priv to remove this article: "
-							+ articleId);
+					// System.out.println("you don't priv to remove this article: "
+					// + articleId);
 					return false;
 				}
 
@@ -985,19 +1167,21 @@ public class ArticleServiceImpl {
 	 * @param userId
 	 * @param rank
 	 */
-	public void updateRank(long wordId, long userId, int rank) {
+	public void updateInterest(long wordId, long userId, int rank) {
 		UserWordAsso uwa = this.userWordAssoRepository.findByUserIdAndWordId(userId,
 				wordId);
 		String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 		if (uwa != null) {
-			uwa.setRank(rank);
+			// uwa.setRank(rank);
+			uwa.setInterest(rank + "");
 			uwa.setLastUpt(dateStr);
 		}
 		else {
 			uwa = new UserWordAsso();
 			uwa.setWord(this.wordRepository.findOne(wordId));
 			uwa.setUser(this.userRepository.findOne(userId));
-			uwa.setRank(rank);
+			// uwa.setRank(rank);
+			uwa.setInterest(rank + "");
 			uwa.setLastUpt(dateStr);
 		}
 		this.userWordAssoRepository.save(uwa);
@@ -1057,6 +1241,9 @@ public class ArticleServiceImpl {
 			String[] wordArr2, String[] senArr2, String[] commArr2, long userId,
 			String password) {
 		password = StringUtils.trim(password);
+		if (StringUtils.isNotEmpty(password)) {
+			password = this.passwordEncoder.encodePassword(password, null);
+		}
 		if ("add".equals(oper)) {
 			Quiz quiz = new Quiz();
 			quiz.setName(name);
@@ -1208,13 +1395,14 @@ public class ArticleServiceImpl {
 	 * @param userId
 	 * @return
 	 */
-	public String ignoreWord(long wordId, long userId) {
-		List<QuizResult> qrList = this.quizResultRepository.findByUserIdAndWordId(userId,
-				wordId);
-		for (QuizResult qr : qrList) {
-			qr.setIsRight(10000);
-			this.quizResultRepository.save(qr);
-		}
+	public String ignoreWord(long wordId, long days, long userId) {
+		// List<QuizResult> qrList =
+		// this.quizResultRepository.findByUserIdAndWordId(userId,
+		// wordId);
+		// for (QuizResult qr : qrList) {
+		// qr.setIsRight(1);
+		// this.quizResultRepository.save(qr);
+		// }
 
 		UserWordAsso uwa = this.userWordAssoRepository.findByUserIdAndWordId(userId,
 				wordId);
@@ -1227,7 +1415,15 @@ public class ArticleServiceImpl {
 			Word dbWord = this.wordRepository.findOne(wordId);
 			uwa.setWord(dbWord);
 		}
-		uwa.setRank(-1);
+		if (days > 365) {
+			uwa.setRank(-1);
+		}
+
+		Calendar currCal = Calendar.getInstance();
+		currCal.add(Calendar.DATE, (int) days);
+		String effectDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currCal
+				.getTime());
+		uwa.setEffectDate(effectDateStr);
 		uwa.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 		this.userWordAssoRepository.save(uwa);
 
@@ -1251,5 +1447,68 @@ public class ArticleServiceImpl {
 		user.setOpenId(wxUser.getOpenId());
 		this.userRepository.save(user);
 		return user;
+	}
+
+	public void sendMsg(String accessToken) {
+		ClassLoader classLoader = getClass().getClassLoader();
+		File jsonTemplateFile = new File(classLoader.getResource(
+				"dailyNotifyTemplate.json").getFile());
+		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
+		DefaultHttpClient httpClient = new DefaultHttpClient();
+		String templateJSON;
+		try {
+			templateJSON = FileUtils.readFileToString(jsonTemplateFile);
+			System.out.println(templateJSON);
+			Iterable<User> userIt = this.userRepository.findAll();
+			int currHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+			for (User user : userIt) {
+				if ((currHour + "").equals(user.getWxRemiderHour())) {
+					String userOpenId = user.getOpenId();
+					if (StringUtils.isNotEmpty(userOpenId)) {
+						System.out.println("###begin send to " + user.getNickname()
+								+ " new Date:" + new Date());
+						String userJSON = templateJSON.replace("REPLACE_TO_USER",
+								userOpenId);
+						String originalURI = MyFilter.basePath
+								+ "html/ajax/ajax.html#page/freeQuiz";
+						System.out.println("originalURI:" + originalURI);
+						String oauth2URL = "https://open.weixin.qq.com/connect/oauth2/authorize"
+								+ "?appid=wxad1e1211d18cd79d"
+								+ "&redirect_uri="
+								+ URLEncoder.encode(originalURI, "UTF-8")
+								+ "&response_type=code&scope=snsapi_userinfo&state=123#wechat_redirect";
+						System.out.println("oauth2URL:" + oauth2URL);
+						userJSON = userJSON.replace("REPLACE_URL", oauth2URL);
+						userJSON = userJSON.replace("REPLACE_TITLE", "亲，背单词了");
+						userJSON = userJSON.replace("REPLACE_GOODS", "单词日报");
+						userJSON = userJSON.replace("REPLACE_PRICE", "免费");
+						userJSON = userJSON.replace("REPLACE_DATE", new SimpleDateFormat(
+								"yyyy-MM-dd").format(new Date()));
+						userJSON = userJSON.replace("REPLACE_REMARK", "日拱一卒，点击查看详情");
+						System.out.println("userJSON:" + userJSON);
+						StringEntity requestEntity = new StringEntity(userJSON,
+								"application/json", "UTF-8");
+						String uri = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="
+								+ accessToken;
+						HttpPost method = new HttpPost(uri);
+						method.setEntity(requestEntity);
+						HttpResponse result = httpClient.execute(method);
+						String resData = EntityUtils.toString(result.getEntity());
+						JSONObject json = (JSONObject) new JSONParser().parse(resData);
+						System.out.println("errcode:" + json.get("errcode"));
+						System.out.println("errmsg:" + json.get("errmsg"));
+						System.out.println("msgid:" + json.get("msgid"));
+					}
+
+				}
+			}
+
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		catch (org.json.simple.parser.ParseException e) {
+			e.printStackTrace();
+		}
 	}
 }

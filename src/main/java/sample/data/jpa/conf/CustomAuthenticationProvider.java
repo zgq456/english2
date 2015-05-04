@@ -26,7 +26,6 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.transaction.annotation.Transactional;
 
 import sample.data.jpa.domain.User;
 import sample.data.jpa.service.MyConstants;
@@ -44,13 +43,13 @@ public class CustomAuthenticationProvider implements AuthenticationProvider, Ser
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.springframework.security.authentication.AuthenticationProvider#authenticate
 	 * (org.springframework.security.core.Authentication)
 	 */
 	@Override
-	@Transactional
+	// @Transactional
 	public Authentication authenticate(Authentication authenticate)
 			throws AuthenticationException {
 		String email = authenticate.getName();
@@ -71,7 +70,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider, Ser
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.springframework.security.authentication.AuthenticationProvider#supports(java
 	 * .lang.Class)

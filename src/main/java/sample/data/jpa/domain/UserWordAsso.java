@@ -18,6 +18,7 @@ package sample.data.jpa.domain;
 
 import java.io.Serializable;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -38,9 +39,17 @@ public class UserWordAsso implements Serializable {
 	@ManyToOne
 	private Word word;
 
+	/**
+	 * Y/N
+	 */
+	@Column(nullable = true)
+	private String interest;
+
 	private int rank;
 
 	private String lastUpt;
+
+	private String effectDate;
 
 	public UserWordAsso() {
 	}
@@ -55,6 +64,14 @@ public class UserWordAsso implements Serializable {
 
 	public int getRank() {
 		return this.rank;
+	}
+
+	public String getInterest() {
+		return this.interest;
+	}
+
+	public void setInterest(String interest) {
+		this.interest = interest;
 	}
 
 	public void setRank(int rank) {
@@ -83,6 +100,18 @@ public class UserWordAsso implements Serializable {
 
 	public void setWord(Word word) {
 		this.word = word;
+	}
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
+	}
+
+	public String getEffectDate() {
+		return this.effectDate;
+	}
+
+	public void setEffectDate(String effectDate) {
+		this.effectDate = effectDate;
 	}
 
 	// @Override

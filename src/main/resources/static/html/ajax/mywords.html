@@ -204,7 +204,9 @@
 			$("#togglePlayBtn").text("停止播放");
 			isPlaying = true;
 			var index = 0;
-			audioElms[index].play();
+			if(index < audioElms.length) {
+				audioElms[index].play();
+			}
 		} else {
 			$("#togglePlayBtn").text("播放音频");
 			for(var i = 0; i < audioElms.length; i++) {

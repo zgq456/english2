@@ -59,6 +59,9 @@ public class Word implements Serializable {
 	@Column(nullable = true)
 	private Integer level;
 
+	@Column(nullable = true)
+	private String audioPath;
+
 	@ManyToMany(mappedBy = "words")
 	// , fetch = FetchType.EAGER
 	private List<Group> groups;
@@ -245,6 +248,20 @@ public class Word implements Serializable {
 
 	public void setPron(String pron) {
 		this.pron = pron;
+	}
+
+	/**
+	 * @return the audioPath
+	 */
+	public String getAudioPath() {
+		return this.audioPath;
+	}
+
+	/**
+	 * @param audioPath the audioPath to set
+	 */
+	public void setAudioPath(String audioPath) {
+		this.audioPath = audioPath;
 	}
 
 	// @Override

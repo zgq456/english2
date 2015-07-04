@@ -19,9 +19,16 @@ package sample.data.jpa;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.context.embedded.ServletRegistrationBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.web.SpringBootServletInitializer;
+import org.springframework.context.annotation.Bean;
+
+import sample.data.jpa.conf.AudioServlet;
+import sample.data.jpa.conf.MySettings;
 
 @SpringBootApplication
+@EnableConfigurationProperties({ MySettings.class })
 public class SampleDataJpaApplication extends SpringBootServletInitializer {
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
@@ -30,6 +37,19 @@ public class SampleDataJpaApplication extends SpringBootServletInitializer {
 
 	public static void main(String[] args) throws Exception {
 		SpringApplication.run(SampleDataJpaApplication.class, args);
+	}
+
+	// @Bean
+	// public Servlet testaudiofiles() {
+	// return new AudioServlet();
+	// }
+
+	@Bean
+	public ServletRegistrationBean servletRegistrationBean() {
+		ServletRegistrationBean srb = new ServletRegistrationBean(new AudioServlet(),
+				"/audiofiles/*");
+		srb.setLoadOnStartup(0);
+		return srb;
 	}
 
 	// @Override

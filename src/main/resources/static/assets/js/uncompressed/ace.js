@@ -638,13 +638,21 @@ ace.enable_ajax_content = function($, options) {
 	var update_active = options.update_active || typeof options.update_active === 'undefined';
 	var close_active = options.close_active || typeof options.close_active === 'undefined';
 
+//	console.log("###content_url:" + content_url);
+	
 	$(window)
 	.off('hashchange.ajax')
 	.on('hashchange.ajax', function(e, manual_trigger) {
 		var hash = $.trim(window.location.hash);
+		
+		console.log("###hash1:" + hash);
+		
 		if(!hash || hash.length == 0) return;
 		
 		hash = hash.replace(/^(\#\!)?\#/, '');
+		
+		console.log("###hash2:" + hash);
+		
 		var url = false;
 		
 		if(typeof content_url === 'function') url = content_url(hash);

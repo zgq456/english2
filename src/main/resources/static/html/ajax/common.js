@@ -121,3 +121,73 @@ function toggleForkSen(spanObj, senId) {
 
 	});
 }
+
+function deleteArticle(obj, id) {
+	bootbox.confirm("确定要删除该文章(ID:" + id + ")吗？", function(result) {
+		if(result) {
+			$
+			.ajax({
+				type : "POST",
+				url : "../../deleteArticle",
+				data : {
+					id : id 
+				},
+				async : true,
+				dataType : "text",
+				success : function(data) {
+					 alert("删除成功");
+					 window.location.reload();
+					 
+				},
+				error : function(data) {
+					alert("submit result error, please contact administrator");
+				}
+
+			});
+		}
+	});
+}
+
+
+
+function showSenDetail(articleId) {
+	window.location = "ajax.html?articleId=" + articleId + "#page/sentences2";
+}
+
+function showWordDetail(articleId) {
+	window.location = "ajax.html?articleId=" + articleId + "#page/words2";
+}
+
+
+
+function toggleForkWord(spanObj, wordId) {
+	console.log("toggleFork wordId:" + wordId);
+	var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 1 : 0; 
+	if(forkValue == 0) {
+		$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+	} else {
+		$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+	}					
+	$.ajax({
+		type : "POST",
+		url : "../../toggleWordFork",
+		data : {
+			wordId : wordId,
+			forkValue : forkValue
+		},
+		async : true,
+		dataType : "json",
+		success : function(data) {
+			if(data == "0") {
+				alert("please login first");
+			}
+			//rowData.tempRank = parseRank(newRank);
+			//$("#grid-table").jqGrid('setRowData', id, rowData);
+		},
+		error : function(data) {
+			alert("submit result error, please contact administrator");
+		}
+
+	});
+}
+

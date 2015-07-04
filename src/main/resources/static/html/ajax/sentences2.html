@@ -1,10 +1,8 @@
 
-<title>jqGrid - Ace Admin</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../../assets/css/jquery-ui.min.css" />
 <link rel="stylesheet" href="../../assets/css/datepicker.css" />
 <link rel="stylesheet" href="../../assets/css/ui.jqgrid.css" />
-
 
 <style>
 .input-answer {
@@ -31,14 +29,46 @@
 
 <div class="row">
 	<div class="col-xs-12">
+		<div id="modal-form" class="modal" tabindex="-1">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="close" data-dismiss="modal">&times;</button>
+							<h4 class="blue bigger">单词信息</h4>
+						</div>
+						<div class="modal-body">
+							<div class="row">
+								<div class="col-xs-12 col-sm-12">
+									<div id="wordDiv">
+			
+									</div>
+								</div>
+							</div>
+						</div>
+	
+						<div class="modal-footer">
+							<button class="btn btn-sm" data-dismiss="modal">
+								<i class="ace-icon fa fa-times"></i> 关闭
+							</button>
+						</div>
+					</div>
+				</div>
+		</div>
+		
 
 		<div class="col-xs-12">
 			<div id="articleInfo" class="title2"></div>
+			<div>
+				点击下面句子单词，可以进行快捷收藏
+			</div>
 			<div id="mySenList" style="font-size: 20px;">
 			</div>
 			<div id="loading" style="font-size: 20px;display: none;">Loading....</div>
 			<button id="loadMoreBtn" style="display: none;"  class="btn btn-info" type="button"  onclick="refreshSenList()">加载更多</button>
+			标为完成: <input type="checkbox" onchange='toggleArticleStatus(this)' />
 		</div>
+		
+		
 		
 		<table id="grid-table"></table>
 
@@ -47,6 +77,8 @@
 		<script type="text/javascript">
 			var $path_base = "../..";//in Ace demo this will be used for editurl parameter
 		</script>
+		
+	
 
 		<!-- PAGE CONTENT ENDS -->
 	</div><!-- /.col -->
@@ -54,38 +86,205 @@
 
 <!-- page specific plugin scripts -->
 <script type="text/javascript">
-	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js", null]
+	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js","../../assets/js/jquery.lettering.js",
+	               "http://res.wx.qq.com/open/js/jweixin-1.0.0.js", null]
 	var currPage = 1;
 	var rowSize = 10;
 	var currMaxRowIndex = 1;
 	var allLoadDone = false;
+	var articleId;
 	ace.load_ajax_scripts(scripts, function() {
 	  //inline scripts related to this page
 		jQuery(function($) { 
-			refreshSenList();
+			articleId = GetArgsFromHref(window.location.href, "articleId");
+			articleId = articleId.replace("#page/sentences2", "");
+			$("#articleInfo").html("文章ID: " + articleId);
 			
-			$(document).scrollTop(0);
-			$(window).scroll(function(){
-				  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
-				//		   + " $(window).height():" + $(window).height());
-				if(allLoadDone) {
-					return;
+			initWeiXinInfo();
+			
+			$
+			.ajax({
+				type : "POST",
+				url : "../../getArticle",
+				data : {
+					articleId : articleId
+				},
+				async : true,
+				dataType : "json",
+				success : function(data) {
+					var oneArticleHtml = "";
+					oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
+					var name = data.name;
+					var url = data.url;
+					var remark = data.remark;
+					oneArticleHtml += "<tr>";
+					oneArticleHtml += "	  <td colspan=2>素材";
+					oneArticleHtml += " ID:" + data.id;
+					oneArticleHtml += "	  </td>";
+					oneArticleHtml += "</tr>";
+					if(name != "") {
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td>名称</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		name;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "</tr>";
+					}
+					if(url != "") {
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td>来源</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		"<a target='_blank' href='" + url + "'>" + url.substr(0, 15) + "...</a>";
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "<tr>";
+					}
+					if(remark != "") {
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td>备注</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		remark;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "<tr>";
+					}
+					oneArticleHtml += "	  <td>类型</td>";
+					oneArticleHtml += "	  <td>";
+					oneArticleHtml += 		data.type;
+					oneArticleHtml += "	  </td>";
+					oneArticleHtml += "</tr>";
+					oneArticleHtml += "<tr>";
+					oneArticleHtml += "	  <td>共享</td>";
+					oneArticleHtml += "	  <td>";
+					oneArticleHtml += 		data.openFlag;
+					oneArticleHtml += "	  </td>";
+					oneArticleHtml += "<tr>";
+					oneArticleHtml += "	  <td>创建时间</td>";
+					oneArticleHtml += "	  <td>";
+					oneArticleHtml += 		data.lastUpt;
+					oneArticleHtml += "	  </td>";
+					oneArticleHtml += "</tr>";
+					oneArticleHtml += "<tr>";
+					oneArticleHtml += "	  <td align='center' colspan=2>";
+					oneArticleHtml += "      <button class='btn btn-info' type='button'  onclick='showWordDetail(" + data.id +  ")'  >单词</button>&nbsp;&nbsp;<button class='btn btn-info' type='button' onclick='deleteArticle(this, " + data.id  + ")' >删除</button>";
+					oneArticleHtml += "	  </td>";
+					oneArticleHtml += "</tr>";
+					oneArticleHtml += "</table>";
+					$("#articleInfo").html(oneArticleHtml);
+				},
+				error : function(data) {
+					alert("submit result error, please contact administrator");
 				}
-		        if($(document).scrollTop() >= $(document).height() - $(window).height()){
-		        	$("#loading").show();
-		        	refreshSenList();
-		        	$("#loading").hide();
-		        }
-		      });	
+
+			});
+			
+			
+			var bookMark = getBookMark(); 
+			currPage = parseInt((parseInt(bookMark) - 1  + 10) / 10);
+			currMaxRowIndex = (currPage - 1) * 10 + 1;
+			if(currMaxRowIndex < 0) {
+				currMaxRowIndex = 1;
+			}
+			if(currPage < 1) {
+				currPage = 1;
+			}
+			if(currPage != 1) {
+				bootbox.confirm("是否直接跳到上次书签(" + bookMark + ")所在的组位置？", function(result) {
+					if(result) {
+						initWork();
+					} else {
+						currPage = 1;
+						currMaxRowIndex = 1;
+						initWork();
+					}
+				});
+			} else {
+				initWork();
+			}
+			
 		});
 	});
 	
+
+	
+	function initWeiXinInfo() {
+		return;
+		
+		var shareUrl = encodeURIComponent(location.href).split('#')[0];
+		
+		console.log("shareUrl:" + shareUrl);
+		$.ajax({
+			type : "POST",
+			url : "../../getWXShareInfo",
+			data : {
+				shareUrl : shareUrl
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				//appId, timestamp, nonceStr, signature
+				wx.config({
+				    debug: true, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+				    appId: data[0], // 必填，公众号的唯一标识
+				    timestamp: data[1], // 必填，生成签名的时间戳
+				    nonceStr: data[2], // 必填，生成签名的随机串
+				    signature: data[3],// 必填，签名，见附录1
+				    jsApiList: ["onMenuShareTimeline"] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+				});
+				
+				
+				wx.ready(function () {
+					console.log("###ready");
+					wx.onMenuShareTimeline({
+					    title: '英文素材分享', // 分享标题
+					    link: shareUrl, // 分享链接
+					    imgUrl: '', // 分享图标
+					    success: function () { 
+					        // 用户确认分享后执行的回调函数
+					        alert("success");
+					    },
+					    cancel: function () { 
+					        // 用户取消分享后执行的回调函数
+					        alert("cancel");
+					    }
+					});
+					
+				});
+			},
+			error : function(data) {
+				alert("set error, please contact administrator");
+			}
+
+		});
+	}
+	
+	var loading = false;
+	function initWork() {
+		refreshSenList();
+		
+		$(document).scrollTop(0);
+		$(window).scroll(function(){
+			  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
+			//		   + " $(window).height():" + $(window).height());
+			if(allLoadDone) {
+				return;
+			}
+	        if($(document).scrollTop() >= $(document).height() - $(window).height()){
+	        	if(!loading) {
+		        	$("#loading").show();
+		        	refreshSenList();
+		        	$("#loading").hide();
+	        	}
+	        }
+	      });	
+	}
+	
+	
 	function refreshSenList() {
-		var articleId = GetArgsFromHref(window.location.href, "articleId");
-		articleId = articleId.replace("#page/sentences2", "");
-		$("#articleInfo").html("文章ID: " + articleId);
+		loading = true;
 		if(articleId == "") {
 			return;
+		} else {
+			
+		
 		}
 		console.log("refreshSenList articleId:" + articleId);
 		$
@@ -97,7 +296,7 @@
 						rows : rowSize,
 						articleId : articleId
 					},
-					async : false,
+					async : true,
 					dataType : "json",
 					success : function(data) {
 						if(currPage >= data.total) {
@@ -112,11 +311,11 @@
 							var oneArticleHtml = "<div  style='border: 3px dashed #ccc;margin-top:5px;'   >";
 							oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
 							oneArticleHtml += "<tr>";
-							oneArticleHtml += "	  <td colspan=2>第" + (currMaxRowIndex++) + "句</td>";
+							oneArticleHtml += "	  <td colspan=2>" + (currMaxRowIndex++) + "/" + data.records  + "</td>";
 							oneArticleHtml += "</tr>";
 							oneArticleHtml += "<tr>";
 							oneArticleHtml += "	  <td colspan=2>";
-							oneArticleHtml += 		data.rows[i].content + "&nbsp;&nbsp;";
+							oneArticleHtml += 		"<span  class='word_split'>" + data.rows[i].content + "</span>&nbsp;&nbsp;";
 							oneArticleHtml += "      <b>收藏 &rarr;</b> <span class='title3'  onclick='toggleForkSen(this, " + data.rows[i].id + ")'> ";
 							if(data.rows[i].usefulFlag != 'Yes') {
 								oneArticleHtml += "      <i class='ace-icon glyphicon glyphicon-star-empty'></i>";
@@ -126,12 +325,26 @@
 							oneArticleHtml += "      </span>";
 							oneArticleHtml += "	  </td>";
 							oneArticleHtml += "</tr>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += '		&nbsp;&nbsp;书签: <input type="radio" onclick="setBookMark(' + currMaxRowIndex + ')" name="bookmarkRadio" id="bookmark_' + data.rows[i].id + '"/>';
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
 							oneArticleHtml += "</table>";
 							oneArticleHtml += "</div>";
 							 
 							//alert("oneArticleHtml:" + oneArticleHtml);
 							$("#mySenList").append(oneArticleHtml);
 						}
+						
+						$(".word_split").lettering('words');
+						$('.word_split').click(function(event) {
+							var word=event.target.innerHTML;
+							//alert("word:" + word);
+							fetchWordInfo(word);
+						});
+						
+						loading = false;
 					},
 					error : function(data) {
 						alert("submit result error, please contact administrator");
@@ -140,5 +353,126 @@
 				});
 	}
 	
-		
+	function fetchWordInfo(wordValue) {
+		$.ajax({
+			type : "POST",
+			url : "../../getWordList2ForSingle",
+			data : {
+				articleId : articleId,
+				wordValue : wordValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+				var i = 0;
+				var oneWordHtml = "";
+				oneWordHtml += "<table   class='table table-striped table-bordered table-hover'>";
+				oneWordHtml += "<tr>";
+				oneWordHtml += "	  <td colspan=2>" + data.rows[i].value + "</td>";
+				oneWordHtml += "</tr>";
+				oneWordHtml += "<tr>";
+				oneWordHtml += "	  <td colspan=2>";
+				oneWordHtml += "	    " + data.rows[i].pron + " " + data.rows[i].explain2;
+				oneWordHtml += "	  </td>";
+				oneWordHtml += "</tr>";
+				/*
+				oneWordHtml += "<tr>";
+				oneWordHtml += "	  <td colspan=2>";
+				oneWordHtml += "	    出现频次: " + data.rows[i].tempHit;
+				
+				for(var j = 0; j < data.rows[i].tempRank; j++) {
+					oneWordHtml += "<img width='20' height='20' src='../../assets/images/star_full.png' />";
+				}
+				
+				oneWordHtml += "	  </td>";
+				oneWordHtml += "</tr>";
+				*/
+				oneWordHtml += "<tr>";
+				oneWordHtml += "	  <td colspan=2>";
+				oneWordHtml += "     <b>收藏 &rarr;</b>  <span class='title3'  onclick='toggleForkWord(this, " + data.rows[i].id + ")' >";
+				if(data.rows[i].tempInterest != '1') {
+					oneWordHtml += "      <i class='ace-icon glyphicon glyphicon-star-empty'></i>";
+				} else {
+					oneWordHtml += "      <i class='ace-icon glyphicon glyphicon-star'></i>";
+				}
+				oneWordHtml += "      </span>";
+				oneWordHtml += "	  </td>";
+				oneWordHtml += "</tr>";
+				oneWordHtml += "</table>";
+				$("#wordDiv").html(oneWordHtml);
+				$("#modal-form").modal();
+			},
+			error : function(data) {
+				alert("set error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function toggleArticleStatus(cbObj) {
+		console.log("cbObj.checked:" + cbObj.checked);
+		$.ajax({
+			type : "POST",
+			url : "../../updateArticleStatus",
+			data : {
+				articleId : articleId,
+				status : cbObj.checked
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("set error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function setBookMark(bookMarkIndex) {
+		$.ajax({
+			type : "POST",
+			url : "../../setBookMark",
+			data : {
+				articleId : articleId,
+				bookMarkIndex : bookMarkIndex,
+				type : 'sen'
+			},
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	
+	function getBookMark() {
+		var bookMarkIndex = 0;
+		$.ajax({
+			type : "POST",
+			url : "../../getBookMark",
+			data : {
+				articleId : articleId,
+				type : 'sen'
+			},
+			async : false,
+			dataType : "text",
+			success : function(data) {
+				bookMarkIndex = data;
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+		});
+		return bookMarkIndex;
+	}
 </script>

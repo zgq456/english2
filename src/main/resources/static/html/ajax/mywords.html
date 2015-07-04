@@ -1,0 +1,355 @@
+
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/jquery-ui.min.css" />
+<link rel="stylesheet" href="../../assets/css/datepicker.css" />
+<link rel="stylesheet" href="../../assets/css/ui.jqgrid.css" />
+
+
+<style>
+.input-answer {
+	color : black;
+}
+
+.title2 {
+	font-size: 20px;
+}
+
+.title3 {
+	font-size: 20px;
+	cursor: pointer;
+	color: red;
+}
+</style>
+
+<!-- ajax layout which only needs content area -->
+<div class="page-header">
+	<h1>
+		我的单词列表
+	</h1>
+</div><!-- /.page-header -->
+
+<div class="row">
+	<div class="col-xs-12">
+
+		<div class="col-xs-12">
+			<div id="summaryInfo" class="title2"></div>
+			<div>
+				播放前<select id="playCountSel">
+					<option value='20'>20</option>
+					<option value='50'>50</option>
+					<option value='100'>100</option>
+					<option value='999999'>All</option>
+				</select>个
+				<button id="togglePlayBtn" class="btn btn-info"  type="button"  onclick="playAudio()">播放音频</button>
+			</div>
+			<div id="mySenList" style="font-size: 20px;">
+			</div>
+			<div id="loading" style="font-size: 20px;display: none;">Loading....</div>
+			<button id="loadMoreBtn"  class="btn btn-info" style="display: none;" type="button"  onclick="refreshWordList()">加载更多</button>
+		</div>
+		
+		<table id="grid-table"></table>
+
+		<div id="grid-pager"></div>
+
+		<script type="text/javascript">
+			var $path_base = "../..";//in Ace demo this will be used for editurl parameter
+		</script>
+
+		<!-- PAGE CONTENT ENDS -->
+	</div><!-- /.col -->
+</div><!-- /.row -->
+
+<!-- page specific plugin scripts -->
+<script type="text/javascript">
+	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js", null]
+	var currPage = 1;
+	var rowSize = 10;
+	var loadedSize = 0;
+	var currMaxRowIndex = 1;
+	var articleId = "";
+	var allLoadDone = false;
+	var loading = false;
+	ace.load_ajax_scripts(scripts, function() {
+	  //inline scripts related to this page
+		jQuery(function($) { 
+			refreshWordList();
+			getMyWordSummary();
+			
+			$(document).scrollTop(0);
+			$(window).scroll(function(){
+				  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
+				//		   + " $(window).height():" + $(window).height());
+				if(allLoadDone) {
+					return;
+				}
+		        if($(document).scrollTop() >= $(document).height() - $(window).height()){
+		        	if(!loading) {
+			        	$("#loading").show();
+			        	refreshWordList();
+			        	$("#loading").hide();
+		        	}
+		        }
+		      });	
+		});
+	});
+	
+	function refreshWordList(customRowSize) {
+		console.log("customRowSize:" + customRowSize );
+		//console.log("type:" + (typeof(customRowSize) == "undefined") );
+		
+		if(allLoadDone) {
+			return;
+		}
+		var rowSize2 = (typeof(customRowSize) == "undefined") ? rowSize : customRowSize;
+		loading = true;
+		$
+				.ajax({
+					type : "POST",
+					url : "../../getMyWordList",
+					data : {
+						page : currPage,
+						rows : rowSize2
+					},
+					async : true,
+					dataType : "json",
+					success : function(data) {
+						
+						if(currPage >= data.total) {
+							$("#loadMoreBtn").attr("disabled", true);
+							$("#loadMoreBtn").hide();
+							allLoadDone = true;
+						} else {
+							currPage++;
+						}
+						
+						loadedSize  += data.rows.length;
+						console.log("data.length:" + data.rows.length + " loadedSize:" + loadedSize);
+						for (var i = 0; i < data.rows.length; i++) {
+							var oneArticleHtml = "<div  style='border: 3px dashed #ccc;margin-top:5px;'   >";
+							oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>" + (currMaxRowIndex++) + "/" + data.records + ": " + data.rows[i].content + "</td>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += "	    " + data.rows[i].pron  + "  " + data.rows[i].explain2;
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+							if(data.rows[i].audioPath != null && data.rows[i].audioPath != "") {
+								oneArticleHtml += "<tr>";
+								oneArticleHtml += "	  <td colspan=2>"; 
+								oneArticleHtml += "     <audio name='audioElm' src='../../audiofiles/" + data.rows[i].audioPath + "' controls='controls'> ";
+								oneArticleHtml += "	  	Your browser does not support the audio element.";
+								oneArticleHtml += "	  </audio>";
+								oneArticleHtml += "	  </td>";
+								oneArticleHtml += "</tr>";
+							}
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += "	    最近学习时间:" + data.rows[i].lastUpt;
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += '		<button  class="btn btn-info" type="button"  onclick="getSenList(this, ' + data.rows[i].id + ')">查看例句</button>';
+							oneArticleHtml += '		<div   style="border: 2px dashed #ccc;margin-top:5px;" id=senDiv_' + data.rows[i].id + '></div>';
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+							
+							oneArticleHtml += "</table>";
+							oneArticleHtml += "</div>";
+							 
+							//alert("oneArticleHtml:" + oneArticleHtml);
+							$("#mySenList").append(oneArticleHtml);
+						}
+						
+						var audioElms = document.getElementsByName("audioElm");
+						for(var i = 0; i < audioElms.length; i++) {
+							$(audioElms[i]).bind('pause', {audioElms:audioElms,index:i}, function(event) {
+								console.log("index:" + event.data.index);
+								var oneAudio = audioElms[event.data.index];
+								if(oneAudio.currentTime == oneAudio.duration && isChainPlaying) {
+									play2(audioElms, event.data.index);
+								}
+							});
+						}
+						
+						loading = false;
+					},
+					error : function(data) {
+						alert("submit result error, please contact administrator");
+					}
+
+				});
+	}
+	
+	var isPlaying = false;
+	var isChainPlaying = false;
+	var supposeLoadingSize = 100;
+	function playAudio() {
+		isChainPlaying = true;
+		var audioElms = document.getElementsByName("audioElm");
+		console.log("isPlaying:" + isPlaying);
+		supposeLoadingSize = $("#playCountSel").val();
+		
+		console.log("loadedSize:" + loadedSize + " supposeLoadingSize:" + supposeLoadingSize);
+		if(loadedSize <= supposeLoadingSize) {
+			console.log("###refreshWordList");
+			refreshWordList(supposeLoadingSize - rowSize);
+		}
+		
+		if(!isPlaying) {
+			$("#togglePlayBtn").text("停止播放");
+			isPlaying = true;
+			var index = 0;
+			audioElms[index].play();
+		} else {
+			$("#togglePlayBtn").text("播放音频");
+			for(var i = 0; i < audioElms.length; i++) {
+				audioElms[i].pause();
+			}	
+			isPlaying = false;
+			isChainPlaying = false;
+		}
+		
+		
+	}
+	
+	function play2(audioElms, index) {
+		console.log("audioElms:" + audioElms + " index:" + index + " audioElms.length:" + audioElms.length);
+		if(index + 1 < audioElms.length) {
+			audioElms[index + 1].currentTime = 0;
+			audioElms[index + 1].play();
+		} else {
+			$("#togglePlayBtn").text("播放音频");
+			isPlaying = false;
+			isChainPlaying = false;
+		}
+	}
+	
+	function toggleForkSen(spanObj, senId) {
+		console.log("toggleForkSen senId:" + senId);
+		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 5 : 0; 
+		if(forkValue == 0) {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+		} else {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+		}					
+		$.ajax({
+			type : "POST",
+			url : "../../toggleForkSen",
+			data : {
+				senId : senId,
+				forkValue : forkValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data == "0") {
+					alert("please login first");
+				}
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	
+
+	function toggleForkWord(spanObj, wordId) {
+		console.log("toggleFork wordId:" + wordId);
+		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 1 : 0; 
+		if(forkValue == 0) {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+		} else {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+		}					
+		$.ajax({
+			type : "POST",
+			url : "../../toggleWordFork",
+			data : {
+				wordId : wordId,
+				forkValue : forkValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data == "0") {
+					alert("please login first");
+				}
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function getSenList(obj, wordId) {
+		$("#senDiv_" + wordId).html("");
+		$.ajax({
+			type : "POST",
+			url : "../../getSenListForSubGrid3",
+			data : {
+				wordId : wordId
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				$("#senDiv_" + wordId).html("");
+				if(data.rows.length == 0) {
+					$("#senDiv_" + wordId).html("没有数据");
+				}
+				for (var i = 0; i < data.rows.length; i++) {
+					var oneArticleHtml = "<div>";
+					oneArticleHtml += "<b>" + (i + 1) + ".</b>" + data.rows[i].content + "&nbsp;<span class='title3'  onclick='toggleForkSen(this, " + data.rows[i].id + ")'>";
+					if(data.rows[i].tempFlag != 'Yes') {
+						oneArticleHtml += "      <i class='ace-icon glyphicon glyphicon-star-empty'></i>";
+					} else {
+						oneArticleHtml += "      <i class='ace-icon glyphicon glyphicon-star'></i>";
+					}
+					oneArticleHtml += "</span>";
+					oneArticleHtml += "</div>";
+					
+					if(false) {
+						oneArticleHtml += "	  <td colspan=2>";
+						oneArticleHtml += "     <b>收藏 &rarr;</b>  <span class='title3'  onclick='toggleForkWord(this, " + data.rows[i].id + ")' >";
+						oneArticleHtml += "      </span>";
+					}
+					 
+					//alert("oneArticleHtml:" + oneArticleHtml);
+					$("#senDiv_" + wordId).append(oneArticleHtml);
+				}
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function getMyWordSummary() {
+		$.ajax({
+			type : "POST",
+			url : "../../getMyWordSummary",
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				$("#summaryInfo").html("今日复习了" + (parseInt(data[1]) - parseInt(data[0])) + "个,新学了" + data[0] + "个");
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+</script>

@@ -22,4 +22,5 @@ import sample.data.jpa.domain.UserArticleForkAsso;
 
 public interface UserArticleForkAssoRepository extends
 		CrudRepository<UserArticleForkAsso, Long> {
+	UserArticleForkAsso findByUserIdAndArticleId(Long userId, Long articleId);
 }

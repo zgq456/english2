@@ -14,6 +14,7 @@ ace.enable_ajax_content = function($, options) {
 	var update_active = options.update_active || typeof options.update_active === 'undefined';
 	var close_active = options.close_active || typeof options.close_active === 'undefined';
 
+	
 	$(window)
 	.off('hashchange.ajax')
 	.on('hashchange.ajax', function(e, manual_trigger) {

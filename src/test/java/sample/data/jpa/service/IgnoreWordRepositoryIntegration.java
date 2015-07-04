@@ -45,8 +45,11 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
@@ -70,6 +73,7 @@ import org.xml.sax.SAXException;
 
 import sample.data.jpa.SampleDataJpaApplication;
 import sample.data.jpa.domain.Article;
+import sample.data.jpa.domain.ArticleBean;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
@@ -87,6 +91,7 @@ import sample.data.jpa.domain.User;
 //import edu.stanford.nlp.process.DocumentPreprocessor;
 //import edu.stanford.nlp.process.PTBTokenizer;
 import sample.data.jpa.domain.Word;
+import sample.data.jpa.domain.WordBean2;
 import sample.data.jpa.domain.WordRelation;
 import sample.data.jpa.domain.WordSummary;
 import sample.data.jpa.repository.ArticleRepository;
@@ -657,6 +662,14 @@ public class IgnoreWordRepositoryIntegration {
 	}
 
 	@Test
+	public void testFindByUserId5() throws Exception {
+		long userId = 18L;
+		String wordValue = "chrome";
+		List<Word> wordList = this.wordRepository.findByUserId5(userId, wordValue);
+		System.out.println("wordList:" + wordList);
+	}
+
+	@Test
 	public void testSen2() throws Exception {
 		long userId = 1L;
 		List<Sentence> senList = this.sentenceRepository.findByArticleUserIdSubGrid(
@@ -817,7 +830,8 @@ public class IgnoreWordRepositoryIntegration {
 	@Test
 	public void testHttpClient2() throws Exception {
 		ClassLoader classLoader = getClass().getClassLoader();
-		File jsonTemplateFile = new File(classLoader.getResource("test.json").getFile());
+		File jsonTemplateFile = new File(classLoader.getResource(
+				"dailyNotifyTemplate.json").getFile());
 		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
 
 		DefaultHttpClient httpClient = new DefaultHttpClient();
@@ -841,4 +855,119 @@ public class IgnoreWordRepositoryIntegration {
 		// {"errcode":0,"errmsg":"ok","msgid":205426623}
 
 	}
+
+	@Test
+	public void testGetMyWordList() throws Exception {
+		long userId = 16;
+		JqGridData<WordBean2> gridDataList = this.articleService.getMyWordList(userId,
+				10, 1, "", "");
+		System.out.println(gridDataList.getJsonString());
+	}
+
+	@Test
+	public void testGetOtherWordList() throws Exception {
+		long userId = 1;
+		JqGridData<WordBean2> gridDataList = this.articleService.getOthersWordList(
+				userId, 10, 1, "", "");
+		System.out.println(gridDataList.getJsonString());
+	}
+
+	@Test
+	public void testGetArticleList2() throws Exception {
+		long userId = 1;
+		JqGridData<ArticleBean> gridDataList = this.articleService.getArticleList2(
+				userId, 10, 1, "", "");
+		System.out.println(gridDataList.getJsonString());
+	}
+
+	@Test
+	public void testGetMySenList() throws Exception {
+		long userId = 16;
+		JqGridData<SenBean> gridDataList = this.articleService.getMySenList(userId, 10,
+				1, "", "");
+		System.out.println(gridDataList.getJsonString());
+	}
+
+	@Test
+	public void testGetMyWordSummary() throws Exception {
+		long userId = 7;
+		Integer[] summaryData = this.articleService.getMyWordSummary(userId);
+		System.out.println("summaryData:" + summaryData[0] + ":" + summaryData[1]);
+	}
+
+	@Test
+	public void testHttpClient3() throws Exception {
+		HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+		CloseableHttpClient closeableHttpClient = httpClientBuilder.build();
+
+		ClassLoader classLoader = getClass().getClassLoader();
+		File jsonTemplateFile = new File(classLoader.getResource(
+				"dailyNotifyTemplate.json").getFile());
+		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
+		String JSON_STRING = FileUtils.readFileToString(jsonTemplateFile);
+		String userOpenId = "oz1rJs-TVjVxCJVjMKgdqO_pFtxx";
+		JSON_STRING = JSON_STRING.replace("REPLACE_TO_USER", userOpenId);
+		System.out.println(JSON_STRING);
+		StringEntity requestEntity = new StringEntity(JSON_STRING,
+				ContentType.APPLICATION_JSON);
+		String token = "sOm0jUot4hFrjdT1UJNQhufJEKTJQtFqbGqtup16S_s1-SFkNJWk0WhnBcd5fRlvha59QLYg3DXDgRDpYEMAbfp5WLyZj1GwzvQrPjeiWMQ";
+		String uri = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="
+				+ token;
+		HttpPost method = new HttpPost(uri);
+		method.setEntity(requestEntity);
+		HttpResponse result = closeableHttpClient.execute(method);
+		String resData = EntityUtils.toString(result.getEntity());
+		JSONObject json = (JSONObject) new JSONParser().parse(resData);
+		System.out.println("errcode:" + json.get("errcode"));
+		System.out.println("errmsg:" + json.get("errmsg"));
+		System.out.println("msgid:" + json.get("msgid"));
+	}
+
+	@Test
+	public void testShare() {
+		WebDriver driver = new HtmlUnitDriver();
+
+		String accessToken = "XBLdlZjcFrOHYnQy0tRzmbAvRxzG7tiAADS8espTmh2S3FhjxHEFnR1OP9NVCG4LYltKFxQGBM0FaKeoWaV8_kef3XeUkhUsTIYXW4pmczo";
+		String url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token="
+				+ accessToken + "&type=jsapi";
+		driver.get(url);
+		String pageSource = driver.getPageSource();
+		try {
+			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+		System.out.println("pageSource:" + pageSource);
+
+		// {"errcode":0,"errmsg":"ok","ticket":"sM4AOVdWfPE4DxkXGEs8VKKVQl3wRLx9tZtPKOwlUSCE5nvVJtpMR0QjmpKagP8p-cR2ym4bQ6FUh5swvTk0xw",
+		// "expires_in":7200}
+
+		// JsonElement jsonElm = new JsonParser().parse(pageSource);
+		try {
+			JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
+			System.out.println("errcode:" + json.get("errcode"));
+			System.out.println("errmsg:" + json.get("errmsg"));
+			System.out.println("ticket:" + json.get("ticket"));
+			System.out.println("expires_in:" + json.get("expires_in"));
+		}
+		catch (ParseException e) {
+			// TODO Auto-generated catch block
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+
+	}
+
+	@Test
+	public void testPron() {
+		String content = "hello";
+		String[] contentCharArr = content.split("");
+		String contentCharStr = "";
+		for (int i = 0; i < contentCharArr.length; i++) {
+			contentCharStr += contentCharArr[i] + ", ";
+		}
+		String content2 = content + " " + contentCharStr + " " + content;
+		System.out.println(content2);
+	}
+
 }

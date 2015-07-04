@@ -1,0 +1,115 @@
+
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/jquery-ui.min.css" />
+<link rel="stylesheet" href="../../assets/css/datepicker.css" />
+<link rel="stylesheet" href="../../assets/css/ui.jqgrid.css" />
+
+
+<style>
+.input-answer {
+	color : black;
+}
+
+.title2 {
+	font-size: 20px;
+}
+
+.title3 {
+	font-size: 20px;
+	cursor: pointer;
+	color: red;
+}
+</style>
+
+<!-- ajax layout which only needs content area -->
+<div class="page-header">
+	<h1>
+		提醒设置
+	</h1>
+</div><!-- /.page-header -->
+
+<div class="row">
+	<div class="col-xs-12">
+
+		<div class="col-xs-12">
+			每日复习提醒：<select id="hourSel">
+			</select>
+			
+			<button id="loadMoreBtn"  class="btn btn-info"  type="button"  onclick="saveMyReminderInfo()">保存</button>
+		</div>
+		
+		<table id="grid-table"></table>
+
+		<div id="grid-pager"></div>
+
+		<script type="text/javascript">
+			var $path_base = "../..";//in Ace demo this will be used for editurl parameter
+		</script>
+
+		<!-- PAGE CONTENT ENDS -->
+	</div><!-- /.col -->
+</div><!-- /.row -->
+
+<!-- page specific plugin scripts -->
+<script type="text/javascript">
+	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js", null]
+	var currPage = 1;
+	var rowSize = 10;
+	var currMaxRowIndex = 1;
+	var articleId = "";
+	var allLoadDone = false;
+	var loading = false;
+	ace.load_ajax_scripts(scripts, function() {
+	  //inline scripts related to this page
+		jQuery(function($) { 
+			$("#hourSel").append("<option value='--'>---------</option>");
+			for(var i = 0; i < 24; i++) {
+				 $("#hourSel").append("<option value='"+ i +"'>" + (i + ":00") + "</option>");
+			}
+			
+			getMyReminderInfo();
+		});
+	});
+	
+	 
+	 
+	
+	function getMyReminderInfo() {
+		$.ajax({
+			type : "POST",
+			url : "../../getMyReminderInfo",
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				//alert("data:" + data);
+				$("#hourSel").val(data);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	 
+	
+	function saveMyReminderInfo() {
+		$.ajax({
+			type : "POST",
+			url : "../../saveMyReminderInfo",
+			data : {
+				hour : $("#hourSel").val()
+			},
+			
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				alert(data);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+</script>

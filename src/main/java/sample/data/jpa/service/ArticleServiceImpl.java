@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,6 +31,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,8 +40,10 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.apache.tika.Tika;
 import org.json.simple.JSONObject;
@@ -60,8 +64,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import sample.data.jpa.conf.MyFilter;
+import sample.data.jpa.conf.MySettings;
 import sample.data.jpa.domain.Article;
+import sample.data.jpa.domain.ArticleBean;
 import sample.data.jpa.domain.ArticleWordAsso;
+import sample.data.jpa.domain.MyWordSummary;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
@@ -75,6 +82,7 @@ import sample.data.jpa.domain.UserArticleForkAsso;
 import sample.data.jpa.domain.UserSenAsso;
 import sample.data.jpa.domain.UserWordAsso;
 import sample.data.jpa.domain.Word;
+import sample.data.jpa.domain.WordBean2;
 import sample.data.jpa.repository.ArticleRepository;
 import sample.data.jpa.repository.ArticleWordAssoRepository;
 import sample.data.jpa.repository.QuizContentRepository;
@@ -86,6 +94,8 @@ import sample.data.jpa.repository.UserRepository;
 import sample.data.jpa.repository.UserSenAssoRepository;
 import sample.data.jpa.repository.UserWordAssoRepository;
 import sample.data.jpa.repository.WordRepository;
+import sample.data.jpa.service.util.MyUtil;
+import sample.data.jpa.weixin.Sign;
 import sample.data.jpa.weixin.WeiXinUser;
 import edu.stanford.nlp.process.DocumentPreprocessor;
 
@@ -114,6 +124,9 @@ public class ArticleServiceImpl {
 
 	@Autowired
 	QuizResultRepository quizResultRepository;
+
+	@Autowired
+	private MySettings mySettings;
 
 	@Autowired
 	public ArticleServiceImpl(ArticleRepository articleRepository,
@@ -239,19 +252,22 @@ public class ArticleServiceImpl {
 		int startIndex = 0;
 		do {
 			if (results.size() < pageSize) {
-
-				// String sql = "SELECT word_id, value,  explain2, uwa.rank, w.mark "
-				// + "  FROM user_word_asso uwa, word w, user u "
-				// + " where uwa.word_id = w.id and u.id = uwa.user_id and u.id = ? "
-				// + " and uwa.rank != -1 "
+				// String sql =
+				// "select w.id word_id, w.value, w.explain2, w.mark, uwa.rank, count(*) myhit from"
+				// +
+				// " user u, user_article_fork_asso uafa, article_word_asso awa, word w, user_word_asso uwa "
+				// +
+				// " where u.id = uafa.user_id and uwa.word_id = w.id  and u.id = uwa.user_id and u.id = ? and uwa.interest = 1 "
 				// +
 				// " and w.id not in (select distinct word_id from quiz_result where user_id = ?) "
-				// + " order by rank desc, mark asc limit " + startIndex + ", 50";
+				// +
+				// " and awa.article_id = uafa.article_id and w.id = awa.word_id group by w.id order by rank desc,  myhit desc"
+				// + " limit " + startIndex + ", 50";
 				String sql = "select w.id word_id, w.value, w.explain2, w.mark, uwa.rank, count(*) myhit from"
-						+ " user u, user_article_fork_asso uafa, article_word_asso awa, word w, user_word_asso uwa "
-						+ " where u.id = uafa.user_id and uwa.word_id = w.id  and u.id = uwa.user_id and u.id = ? and uwa.interest = 1 "
+						+ " user u, article_word_asso awa, word w, user_word_asso uwa "
+						+ " where uwa.word_id = w.id  and u.id = uwa.user_id and u.id = ? and uwa.interest = 1 "
 						+ " and w.id not in (select distinct word_id from quiz_result where user_id = ?) "
-						+ " and awa.article_id = uafa.article_id and w.id = awa.word_id group by w.id order by rank desc,  myhit desc"
+						+ " and w.id = awa.word_id group by w.id order by rank desc,  myhit desc"
 						+ " limit " + startIndex + ", 50";
 				startIndex += 50;
 				// System.out.println("begin getWordListForQuiz " + new Date());
@@ -357,6 +373,12 @@ public class ArticleServiceImpl {
 					senList = this.sentenceRepository.findInDummyArticle("% "
 							+ word.getValue().toLowerCase() + " %");
 				}
+
+				if (senList.isEmpty()) {
+					senList = this.sentenceRepository.findSubGrid4("% "
+							+ word.getValue().toLowerCase() + " %", userId);
+				}
+
 			}
 			int blankCount = 0;
 			String answer = "";
@@ -550,8 +572,7 @@ public class ArticleServiceImpl {
 			this.articleRepository.save(article);
 		}
 		catch (Exception e) {
-			// TODO Auto-generated catch block
-			throw new UnsupportedOperationException("Auto-generated method stub", e);
+			e.printStackTrace();
 		}
 		finally {
 			IOUtils.closeQuietly(stream);
@@ -632,17 +653,30 @@ public class ArticleServiceImpl {
 				awaList.add(awa);
 			}
 
+			boolean isLastWord = (i == sentence.size() - 1);
+			String nextWord = "";
+			if (i + 1 < sentence.size()) {
+				nextWord = sentence.get(i + 1).toString();
+			}
+			if (sentenceStr.length() > 250
+					|| (sentenceStr + " " + nextWord).length() > 250 || isLastWord) {
+				Sentence oneSentence = new Sentence();
+				sentenceStr = sentenceStr.replace("-LRB-", "(");
+				sentenceStr = sentenceStr.replace("-RRB-", ")");
+				sentenceStr = sentenceStr.replace("Â¡Â¯", "'");
+				if (StringUtils.isNotBlank(sentenceStr)) {
+					oneSentence.setContent(" " + sentenceStr + " ");
+					oneSentence.setArticle(article);
+					oneSentence.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+							.format(new Date()));
+					this.sentenceRepository.save(oneSentence);
+					sentencesSet.add(oneSentence);
+
+					sentenceStr = "";
+				}
+			}
+
 		}
-		Sentence oneSentence = new Sentence();
-		sentenceStr = sentenceStr.replace("-LRB-", "(");
-		sentenceStr = sentenceStr.replace("-RRB-", ")");
-		sentenceStr = sentenceStr.replace("Â¡Â¯", "'");
-		oneSentence.setContent(" " + sentenceStr + " ");
-		oneSentence.setArticle(article);
-		oneSentence.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-				.format(new Date()));
-		this.sentenceRepository.save(oneSentence);
-		sentencesSet.add(oneSentence);
 	}
 
 	public void test() {
@@ -712,24 +746,111 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
-	public JqGridData<Article> getArticleList2(long userId, int rows, int currPage,
+	public JqGridData<ArticleBean> getArticleList2(long userId, int rows, int currPage,
 			String sidx, String sord) {
 		if (StringUtils.isEmpty(sidx)) {
 			sidx = "id";
 			sord = "desc";
 		}
-		List<Article> articleList = this.articleRepository.findByUserId(
-				userId,
-				new PageRequest(currPage - 1, rows, "asc".equals(sord) ? Direction.ASC
-						: Direction.DESC, sidx)).getContent();
-		long totalCount = this.articleRepository.getUserTotalCount(userId);
+		String sql = "SELECT a.id, a.url, a.name, a.remark, a.open_flag, a.type, a.delete_flag , a.last_upt, uafa.status "
+				+ " FROM article a, user_article_fork_asso uafa where a.id = uafa.article_id "
+				+ " and uafa.user_id = ? and a.delete_flag != 1 and a.id != -1 order by uafa.status asc,  a.last_upt desc limit "
+				+ (currPage - 1) * 10 + ", " + rows;
+		String countSql = "SELECT count(*) "
+				+ " FROM article a, user_article_fork_asso uafa where a.id = uafa.article_id "
+				+ " and uafa.user_id = ? and a.delete_flag != 1 and a.id != -1 ";
+
+		List<ArticleBean> articleList = this.jdbcTemplate.query(sql,
+				new Object[] { userId }, new RowMapper<ArticleBean>() {
+					@Override
+					public ArticleBean mapRow(ResultSet rs, int rowNum)
+							throws SQLException {
+						return new ArticleBean(rs.getLong("id"), rs.getString("url"), rs
+								.getString("name"), rs.getString("remark"), rs
+								.getString("open_flag"), rs.getString("type"), rs
+								.getInt("delete_flag"), rs.getString("last_upt"), rs
+								.getString("status"));
+					}
+				});
+		long totalCount = this.jdbcTemplate.queryForObject(countSql,
+				new Object[] { userId }, Long.class);
 		long totalNumberOfRecords = totalCount;
 		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
 				: (totalCount / rows + 1));
 
-		JqGridData<Article> gridData = new JqGridData<Article>(totalNumberOfPages,
-				currPage, totalNumberOfRecords, articleList);
+		JqGridData<ArticleBean> gridData = new JqGridData<ArticleBean>(
+				totalNumberOfPages, currPage, totalNumberOfRecords, articleList);
 		return gridData;
+	}
+
+	public JqGridData<ArticleBean> getArticleList2Others(long userId, int rows,
+			int currPage, String sidx, String sord) {
+		if (StringUtils.isEmpty(sidx)) {
+			sidx = "id";
+			sord = "desc";
+		}
+		// String sql =
+		// "SELECT a.id, a.url, a.name, a.remark, a.open_flag, a.type, a.delete_flag , a.last_upt, uafa.status "
+		// + " FROM article a, user_article_fork_asso uafa where a.id = uafa.article_id "
+		// +
+		// " and uafa.user_id != ? and a.delete_flag != 1 and a.id != -1 order by uafa.status asc,  a.last_upt desc limit "
+		// + (currPage - 1) * 10 + ", " + rows;
+		// String countSql = "SELECT count(*) "
+		// + " FROM article a, user_article_fork_asso uafa where a.id = uafa.article_id "
+		// + " and uafa.user_id != ? and a.delete_flag != 1 and a.id != -1 ";
+
+		String sql = "SELECT a.id, a.url, a.name, a.remark, a.open_flag, a.type, a.delete_flag , a.last_upt, '' status "
+				+ " FROM article a where  "
+				+ " a.user_id != ? and a.delete_flag != 1 and a.id != -1 order by  a.last_upt desc limit "
+				+ (currPage - 1) * 10 + ", " + rows;
+		String countSql = "SELECT count(*) " + " FROM article a where  "
+				+ " a.user_id != ? and a.delete_flag != 1 and a.id != -1";
+
+		List<ArticleBean> articleList = this.jdbcTemplate.query(sql,
+				new Object[] { userId }, new RowMapper<ArticleBean>() {
+					@Override
+					public ArticleBean mapRow(ResultSet rs, int rowNum)
+							throws SQLException {
+						return new ArticleBean(rs.getLong("id"), rs.getString("url"), rs
+								.getString("name"), rs.getString("remark"), rs
+								.getString("open_flag"), rs.getString("type"), rs
+								.getInt("delete_flag"), rs.getString("last_upt"), rs
+								.getString("status"));
+					}
+				});
+		long totalCount = this.jdbcTemplate.queryForObject(countSql,
+				new Object[] { userId }, Long.class);
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<ArticleBean> gridData = new JqGridData<ArticleBean>(
+				totalNumberOfPages, currPage, totalNumberOfRecords, articleList);
+		return gridData;
+	}
+
+	public ArticleBean getArticle(long userId, long articleId) {
+		// String sql =
+		// "SELECT a.id, a.url, a.name, a.remark, a.open_flag, a.type, a.delete_flag , a.last_upt, uafa.status "
+		// +
+		// " FROM article a left join user_article_fork_asso uafa where a.id = uafa.article_id "
+		// + " and uafa.user_id = ? and a.id= ? and a.delete_flag != 1 ";
+		String sql = "SELECT a.id, a.url, a.name, a.remark, a.open_flag, a.type, a.delete_flag , a.last_upt, uafa.status, "
+				+ " uafa.user_id FROM article a left outer join user_article_fork_asso uafa on a.id = uafa.article_id and uafa.user_id = ? "
+				+ " where a.id= ? and a.delete_flag != 1";
+
+		List<ArticleBean> articleList = this.jdbcTemplate.query(sql, new Object[] {
+				userId, articleId }, new RowMapper<ArticleBean>() {
+			@Override
+			public ArticleBean mapRow(ResultSet rs, int rowNum) throws SQLException {
+				return new ArticleBean(rs.getLong("id"), rs.getString("url"), rs
+						.getString("name"), rs.getString("remark"), rs
+						.getString("open_flag"), rs.getString("type"), rs
+						.getInt("delete_flag"), rs.getString("last_upt"), rs
+						.getString("status"));
+			}
+		});
+		return articleList.isEmpty() ? null : articleList.get(0);
 	}
 
 	public JqGridData<Quiz> getQuizList(int rows, int currPage, String sidx, String sord) {
@@ -820,30 +941,65 @@ public class ArticleServiceImpl {
 		// new PageRequest(currPage - 1, rows, "asc".equals(sord) ? Direction.ASC
 		// : Direction.DESC, sidx)).getContent();
 
-		String sql = "select sen.id, sen.content, usa.useful_flag "
-				+ " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
-				+ "   join article a where "
-				+ " sen.article_id=a.id and a.user_id= ? and a.delete_flag<>1 "
-				+ " and a.hide_flag='No' "
-				+ " and sen.article_id= ? order by sen.id asc limit " + (currPage - 1)
-				* 10 + ", " + rows;
-		String countSql = "select count(*) "
-				+ " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
-				+ "   join article a where "
-				+ " sen.article_id=a.id and a.user_id= ? and a.delete_flag<>1 "
-				+ " and a.hide_flag='No' " + " and sen.article_id= ?  ";
+		UserArticleForkAsso uafa = this.userArticleForkAssoRepository
+				.findByUserIdAndArticleId(userId, articleId);
+		if (uafa == null) {
+			uafa = new UserArticleForkAsso();
+			Article article = new Article();
+			article.setId(articleId);
+			uafa.setArticle(article);
+			User user = new User();
+			user.setId(userId);
+			uafa.setUser(user);
+			uafa.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+					.format(new Date()));
+			this.userArticleForkAssoRepository.save(uafa);
+		}
+
+		// String sql = "select sen.id, sen.content, usa.useful_flag "
+		// + " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
+		// + "   join article a where "
+		// + " sen.article_id=a.id "
+		// // + " and usa.user_id= ?"
+		// + " and a.delete_flag<>1 " + " and a.hide_flag='No' "
+		// + " and sen.article_id= ? order by sen.id asc limit " + (currPage - 1)
+		// * 10 + ", " + rows;
+
+		String sql = "select * from ( " + " select sen.id senId, sen.content senContent "
+				+ " from sentence sen  " + "  join article a where"
+				+ "  sen.article_id=a.id and sen.article_id = ?"
+				+ " and a.delete_flag<>1 "
+				+ " and a.hide_flag='No') sen2 left join  user_sen_asso usa"
+				+ " on sen2.senId = usa.sen_id and usa.user_id = ?"
+				+ "  order by sen2.senId asc limit " + (currPage - 1) * 10 + ", " + rows;
+
+		// String countSql = "select count(*) "
+		// + " from sentence sen left outer join user_sen_asso usa on sen.id=usa.sen_id "
+		// + "   join article a where " + " sen.article_id=a.id"
+		// // + " and usa.user_id= ? "
+		// + " and a.delete_flag<>1 " + " and a.hide_flag='No' "
+		// + " and sen.article_id= ?  ";
+
+		String countSql = "select count(*) from ( "
+				+ " select sen.id senId, sen.content senContent "
+				+ " from sentence sen  " + "  join article a where"
+				+ "  sen.article_id=a.id and sen.article_id = ?"
+				+ " and a.delete_flag<>1 "
+				+ " and a.hide_flag='No') sen2 left join  user_sen_asso usa"
+				+ " on sen2.senId = usa.sen_id and usa.user_id = ?";
+
 		System.out.println("countSql:" + countSql);
-		List<SenBean> senList = this.jdbcTemplate.query(sql, new Object[] { userId,
-				articleId }, new RowMapper<SenBean>() {
+		List<SenBean> senList = this.jdbcTemplate.query(sql, new Object[] { articleId,
+				userId }, new RowMapper<SenBean>() {
 			@Override
 			public SenBean mapRow(ResultSet rs, int rowNum) throws SQLException {
-				return new SenBean(rs.getLong("id"), rs.getString("content"), rs
+				return new SenBean(rs.getLong("senId"), rs.getString("senContent"), rs
 						.getString("useful_flag"));
 			}
 		});
 
 		long totalCount = this.jdbcTemplate.queryForObject(countSql, new Object[] {
-				userId, articleId }, Long.class);
+				articleId, userId }, Long.class);
 		long totalNumberOfRecords = totalCount;
 		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
 				: (totalCount / rows + 1));
@@ -872,6 +1028,51 @@ public class ArticleServiceImpl {
 		Word word = this.wordRepository.findOne(wordId);
 		List<Sentence> senList = this.sentenceRepository.findByArticleUserIdSubGrid2(
 				userId, articleId, "% " + word.getValue().toLowerCase() + " %");
+		long totalCount = 0;
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = 0;
+
+		long currPage = 0;
+		JqGridData<Sentence> gridData = new JqGridData<Sentence>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, senList);
+		return gridData;
+	}
+
+	/**
+	 * look for sen list that belong to this user
+	 * @param wordId
+	 * @param userId
+	 * @return
+	 */
+	public JqGridData<Sentence> getSenListForSubGrid3(long wordId, long userId) {
+		Word word = this.wordRepository.findOne(wordId);
+		List<Sentence> senList = this.sentenceRepository.findSubGrid3(userId, "% "
+				+ word.getValue().toLowerCase() + " %");
+
+		if (senList.isEmpty()) {
+			return getSenListForSubGrid4(wordId, userId);
+		}
+
+		long totalCount = 0;
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = 0;
+
+		long currPage = 0;
+		JqGridData<Sentence> gridData = new JqGridData<Sentence>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, senList);
+		return gridData;
+	}
+
+	/**
+	 * look for sen list that don't belong to this user
+	 * @param wordId
+	 * @param userId
+	 * @return
+	 */
+	public JqGridData<Sentence> getSenListForSubGrid4(long wordId, long userId) {
+		Word word = this.wordRepository.findOne(wordId);
+		List<Sentence> senList = this.sentenceRepository.findSubGrid4("% "
+				+ word.getValue().toLowerCase() + " %", userId);
 		long totalCount = 0;
 		long totalNumberOfRecords = totalCount;
 		long totalNumberOfPages = 0;
@@ -945,6 +1146,233 @@ public class ArticleServiceImpl {
 		return gridData;
 	}
 
+	public JqGridData<Word> getWordList2ForSingle(long userId, long articleId,
+			String wordValue) {
+		// List<WordSummary> wordList = null;
+		List<Word> wordList = null;
+		wordList = this.wordRepository.findByUserId5(userId, wordValue);
+		// FIXME 频次统计不对，目前暂时不显示
+
+		long totalCount = wordList.size();
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = totalCount;
+
+		JqGridData<Word> gridData = new JqGridData<Word>(totalNumberOfPages, 1,
+				totalNumberOfRecords, wordList);
+		return gridData;
+	}
+
+	public JqGridData<WordBean2> getMyWordList(long userId, int rows, int currPage,
+			String sidx, String sord) {
+		String currDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				.format(new Date());
+		System.out.println("currDateStr:" + currDateStr);
+		// List<WordSummary> wordList = null;
+		String sql = "SELECT distinct w.id, w.explain2, w.value, w.pron, w.level, w.audio_path, uwa2.last_upt2, uwa2.effect_date from word w , ( "
+				+ " select word_id, max(last_upt) last_upt2 , effect_date from user_word_asso  where interest = 1 and (effect_date is null or effect_date <= ? or effect_date > '3000') and user_id = ?  group by word_id "
+				+ " ) uwa2 where w.id = uwa2.word_id  order by uwa2.last_upt2 desc limit "
+				+ (currPage - 1) * 10 + ", " + rows;
+
+		String countSql = "select count(*) from (SELECT distinct w.id, w.explain2, w.value, w.pron, w.level, uwa2.last_upt2 from word w , ( "
+				+ " select word_id, max(last_upt) last_upt2 from user_word_asso where interest = 1 and (effect_date is null or effect_date <= ?  or effect_date > '3000')  and user_id = ?  group by word_id "
+				+ " ) uwa2 where w.id = uwa2.word_id) tt ";
+
+		System.out.println("sql:" + sql);
+		System.out.println("countSql:" + countSql);
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
+		List<WordBean2> results = this.jdbcTemplate.query(sql, new Object[] {
+				currDateStr, userId }, new RowMapper<WordBean2>() {
+			@Override
+			public WordBean2 mapRow(ResultSet rs, int rowNum) throws SQLException {
+				String audioPath = rs.getString("audio_path");
+				String content = rs.getString("value");
+				long wordId = rs.getLong("id");
+				// String[] contentCharArr = content.split("");
+				// String contentCharStr = "";
+				// for (int i = 0; i < contentCharArr.length; i++) {
+				// contentCharStr += contentCharArr[i] + ", ";
+				// }
+				// String content2 = content + " " + contentCharStr + " " + content;
+				// if (StringUtils.isBlank(audioPath)) {
+				// audioPath = MyUtil.genAudioFile(
+				// ArticleServiceImpl.this.mySettings.getAudioDir(), content2);
+				// }
+				//
+				// if (StringUtils.isNotBlank(audioPath)) {
+				// Word word = ArticleServiceImpl.this.wordRepository.findOne(wordId);
+				// word.setAudioPath(audioPath);
+				// word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				// .format(new Date()));
+				// ArticleServiceImpl.this.wordRepository.save(word);
+				// }
+				return new WordBean2(wordId, content, rs.getString("explain2"), rs
+						.getString("pron"), audioPath, rs.getString("last_upt2"));
+
+			}
+		});
+
+		long totalCount = this.jdbcTemplate.queryForObject(countSql, new Object[] {
+				currDateStr, userId }, Long.class);
+
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<WordBean2> gridData = new JqGridData<WordBean2>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, results);
+		return gridData;
+	}
+
+	public JqGridData<WordBean2> getOthersWordList(long userId, int rows, int currPage,
+			String sidx, String sord) {
+		String currDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				.format(new Date());
+		System.out.println("currDateStr:" + currDateStr);
+		// List<WordSummary> wordList = null;
+		String sql = "SELECT distinct w.id, w.explain2, w.value, w.pron, w.level, w.audio_path, uwa2.last_upt2, uwa2.effect_date from word w , ( "
+				+ " select word_id, max(last_upt) last_upt2 , effect_date from user_word_asso  where interest = 1 and user_id != ? "
+				+ " and word_id not in( select word_id from user_word_asso where (interest = 1 or interest = -1) and user_id = ? )  group by word_id "
+				+ " ) uwa2 where w.id = uwa2.word_id  order by uwa2.last_upt2 desc limit "
+				+ (currPage - 1) * 10 + ", " + rows;
+
+		String countSql = "select count(*) from (SELECT distinct w.id, w.explain2, w.value, w.pron, w.level, uwa2.last_upt2 from word w , ( "
+				+ " select word_id, max(last_upt) last_upt2 from user_word_asso where interest = 1 and user_id != ? "
+				+ "  and word_id not in( select word_id from user_word_asso where  (interest = 1 or interest = -1) and user_id = ? )  group by word_id "
+				+ " ) uwa2 where w.id = uwa2.word_id) tt ";
+
+		System.out.println("sql:" + sql);
+		System.out.println("countSql:" + countSql);
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
+		List<WordBean2> results = this.jdbcTemplate.query(sql, new Object[] { userId,
+				userId }, new RowMapper<WordBean2>() {
+			@Override
+			public WordBean2 mapRow(ResultSet rs, int rowNum) throws SQLException {
+				return new WordBean2(rs.getLong("id"), rs.getString("value"), rs
+						.getString("explain2"), rs.getString("pron"), rs
+						.getString("audio_path"), rs.getString("last_upt2"));
+
+			}
+		});
+
+		long totalCount = this.jdbcTemplate.queryForObject(countSql, new Object[] {
+				userId, userId }, Long.class);
+
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<WordBean2> gridData = new JqGridData<WordBean2>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, results);
+		return gridData;
+	}
+
+	public String getMyReminderInfo(long userId) {
+		User user = this.userRepository.findOne(userId);
+		String wxRemiderHourStr = user.getWxRemiderHour();
+		return StringUtils.isBlank(wxRemiderHourStr) ? "" : wxRemiderHourStr;
+	}
+
+	public String saveMyReminderInfo(long userId, String hour) {
+		User user = this.userRepository.findOne(userId);
+		user.setWxRemiderHour(hour);
+		this.userRepository.save(user);
+		return "保存成功";
+	}
+
+	public Integer[] getMyWordSummary(long userId) {
+		String currDateStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+		System.out.println("currDateStr:" + currDateStr);
+		// List<WordSummary> wordList = null;
+		String sql = "select a.user_id, a.word_id, previousCount from ( "
+				+ " SELECT user_id, word_id FROM quiz_result where user_id = ? "
+				+ " and last_upt > ? and is_right = 1 " + " group by user_id, word_id "
+				+ " ) a left join ( "
+				+ " SELECT user_id, word_id, count(*) previousCount FROM quiz_result "
+				+ " where user_id = ?  and last_upt < ? group by user_id, word_id"
+				+ " ) b on a.word_id = b.word_id";
+
+		System.out.println("sql:" + sql);
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
+		List<MyWordSummary> results = this.jdbcTemplate.query(sql, new Object[] { userId,
+				currDateStr, userId, currDateStr }, new RowMapper<MyWordSummary>() {
+			@Override
+			public MyWordSummary mapRow(ResultSet rs, int rowNum) throws SQLException {
+				return new MyWordSummary(rs.getLong("user_id"), rs.getLong("word_id"), rs
+						.getInt("previousCount"));
+
+			}
+		});
+
+		int newWordCount = 0;
+		int todayLearnSize = results.size();
+		for (int i = 0; i < todayLearnSize; i++) {
+			if (results.get(i).getPreviousCount() == 0) {
+				newWordCount++;
+			}
+		}
+
+		return new Integer[] { newWordCount, todayLearnSize };
+	}
+
+	public JqGridData<SenBean> getMySenList(long userId, int rows, int currPage,
+			String sidx, String sord) {
+		String audioDirStr = this.mySettings.getAudioDir();
+		System.out.println("mySettings.getAudioDir():" + audioDirStr);
+
+		String sql = "SELECT s.id, s.content, s.last_upt, s.audio_path FROM sentence s, user_sen_asso usa "
+				+ " where s.id = usa.sen_id "
+				+ " and usa.user_id = ? and usa.useful_flag = 'Yes' "
+				+ " order by usa.last_upt desc  "
+				+ " limit "
+				+ (currPage - 1)
+				* 10
+				+ ", " + rows;
+
+		String countSql = "SELECT count(*) FROM sentence s, user_sen_asso usa "
+				+ " where s.id = usa.sen_id "
+				+ " and usa.user_id = ? and usa.useful_flag = 'Yes' ";
+
+		System.out.println("sql:" + sql);
+		System.out.println("countSql:" + countSql);
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
+		List<SenBean> results = this.jdbcTemplate.query(sql, new Object[] { userId },
+				new RowMapper<SenBean>() {
+					@Override
+					public SenBean mapRow(ResultSet rs, int rowNum) throws SQLException {
+						String audioPath = rs.getString("audio_path");
+						String content = rs.getString("content");
+						long senId = rs.getLong("id");
+						// if (StringUtils.isBlank(audioPath)) {
+						// audioPath = MyUtil.genAudioFile(
+						// ArticleServiceImpl.this.mySettings.getAudioDir(),
+						// content);
+						// }
+						// if (StringUtils.isNotBlank(audioPath)) {
+						// Sentence senDB = ArticleServiceImpl.this.sentenceRepository
+						// .findOne(senId);
+						// senDB.setAudioPath(audioPath);
+						// senDB.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+						// .format(new Date()));
+						// ArticleServiceImpl.this.sentenceRepository.save(senDB);
+						// }
+						return new SenBean(senId, content, "", audioPath, rs
+								.getString("last_upt"));
+
+					}
+				});
+
+		long totalCount = this.jdbcTemplate.queryForObject(countSql,
+				new Object[] { userId }, Long.class);
+
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<SenBean> gridData = new JqGridData<SenBean>(totalNumberOfPages,
+				currPage, totalNumberOfRecords, results);
+		return gridData;
+	}
+
 	public synchronized void enhanceWord() {
 		int index = 1;
 		Iterable<Word> wordIt = this.wordRepository.findAll();
@@ -1003,7 +1431,7 @@ public class ArticleServiceImpl {
 
 		pronStr = StringUtils.trim(pronStr);
 		// System.out.println("word:" + wordVal + "	expain:" + explain);
-		word.setExplain(explain);
+		word.setExplain(StringUtils.substring(explain, 250));
 		word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 		word.setPron(pronStr);
 	}
@@ -1108,7 +1536,7 @@ public class ArticleServiceImpl {
 			usa.setSen(this.sentenceRepository.findOne(senId));
 			this.userSenAssoRepository.save(usa);
 		}
-		String usefulFlag = usa.getUsefulFlag();
+		// String usefulFlag = usa.getUsefulFlag();
 		if (value > 0) {
 			usa.setUsefulFlag("Yes");
 		}
@@ -1118,7 +1546,54 @@ public class ArticleServiceImpl {
 		String lastUpt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 		usa.setLastUpt(lastUpt);
 		this.userSenAssoRepository.save(usa);
+
+		// initAudio(senId);
+
 		return usa.getUsefulFlag();
+	}
+
+	/**
+	 * @param senId
+	 */
+	private void initAudio(long senId) {
+		Sentence sen = this.sentenceRepository.findOne(senId);
+		String audioPath = sen.getAudioPath();
+		String content = sen.getContent();
+		if (StringUtils.isBlank(audioPath)) {
+			audioPath = MyUtil.genAudioFile(
+					ArticleServiceImpl.this.mySettings.getAudioDir(), content);
+			if (StringUtils.isNotBlank(audioPath)) {
+				sen.setAudioPath(audioPath);
+				sen.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+						.format(new Date()));
+				ArticleServiceImpl.this.sentenceRepository.save(sen);
+			}
+		}
+	}
+
+	/**
+	 * @param senId
+	 */
+	private void initAudio2(long wordId) {
+		Word word = this.wordRepository.findOne(wordId);
+		String content = word.getValue();
+		String[] contentCharArr = content.split("");
+		String contentCharStr = "";
+		for (int i = 0; i < contentCharArr.length; i++) {
+			contentCharStr += contentCharArr[i] + ", ";
+		}
+		String content2 = content + " " + contentCharStr + " " + content;
+		String audioPath = word.getAudioPath();
+		if (StringUtils.isBlank(audioPath)) {
+			audioPath = MyUtil.genAudioFile(
+					ArticleServiceImpl.this.mySettings.getAudioDir(), content2);
+			if (StringUtils.isNotBlank(audioPath)) {
+				word.setAudioPath(audioPath);
+				word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+						.format(new Date()));
+				ArticleServiceImpl.this.wordRepository.save(word);
+			}
+		}
 	}
 
 	/**
@@ -1185,6 +1660,27 @@ public class ArticleServiceImpl {
 			uwa.setLastUpt(dateStr);
 		}
 		this.userWordAssoRepository.save(uwa);
+
+		// initAudio2(wordId);
+	}
+
+	public void updateArticleStatus(long articleId, long userId, boolean status) {
+		UserArticleForkAsso uafa = this.userArticleForkAssoRepository
+				.findByUserIdAndArticleId(userId, articleId);
+		if (uafa == null) {
+			uafa = new UserArticleForkAsso();
+			Article article = new Article();
+			article.setId(articleId);
+			uafa.setArticle(article);
+			User user = new User();
+			user.setId(userId);
+			uafa.setUser(user);
+		}
+
+		uafa.setStatus(status + "");
+		String lastUpt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		uafa.setLastUpt(lastUpt);
+		this.userArticleForkAssoRepository.save(uafa);
 	}
 
 	/**
@@ -1223,6 +1719,17 @@ public class ArticleServiceImpl {
 				qr.setQuiz(quiz);
 			}
 			this.quizResultRepository.save(qr);
+
+			UserWordAsso uwa = this.userWordAssoRepository.findByUserIdAndWordId(userId,
+					word.getId());
+			if (uwa == null) {
+				uwa = new UserWordAsso();
+				uwa.setUser(user);
+				uwa.setWord(word);
+			}
+			uwa.setInterest("1");
+			uwa.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+			this.userWordAssoRepository.save(uwa);
 		}
 
 		return "提交成功";
@@ -1333,10 +1840,17 @@ public class ArticleServiceImpl {
 			long dummyId = -1L;
 			Article article = this.articleRepository.findOne(dummyId);
 			if (article == null) {
-				article = new Article();
-				article.setId(dummyId);
-				article.setName("dummy");
-				this.articleRepository.save(article);
+				// article = new Article();
+				// article.setId(dummyId);
+				// article.setName("dummy");
+				// this.articleRepository.save(article);
+
+				int updateCount = this.jdbcTemplate.update(
+						"insert into article(id, name, delete_flag) value(? , ?, ? )",
+						-1, "dummy", 0);
+				System.out.println("###updateCount:" + updateCount);
+				article = this.articleRepository.findOne(dummyId);
+
 			}
 			UserArticleForkAsso uafa = new UserArticleForkAsso();
 			uafa.setArticle(article);
@@ -1445,6 +1959,9 @@ public class ArticleServiceImpl {
 		user.setCity(wxUser.getCity());
 		user.setHeadimgurl(wxUser.getHeadimgurl());
 		user.setOpenId(wxUser.getOpenId());
+		if (StringUtils.isBlank(user.getWxRemiderHour())) {
+			user.setWxRemiderHour("19");
+		}
 		this.userRepository.save(user);
 		return user;
 	}
@@ -1454,7 +1971,10 @@ public class ArticleServiceImpl {
 		File jsonTemplateFile = new File(classLoader.getResource(
 				"dailyNotifyTemplate.json").getFile());
 		System.out.println("jsonTemplateFile:" + jsonTemplateFile.getAbsolutePath());
-		DefaultHttpClient httpClient = new DefaultHttpClient();
+
+		HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+		CloseableHttpClient closeableHttpClient = httpClientBuilder.build();
+		// DefaultHttpClient httpClient = new DefaultHttpClient();
 		String templateJSON;
 		try {
 			templateJSON = FileUtils.readFileToString(jsonTemplateFile);
@@ -1469,8 +1989,11 @@ public class ArticleServiceImpl {
 								+ " new Date:" + new Date());
 						String userJSON = templateJSON.replace("REPLACE_TO_USER",
 								userOpenId);
-						String originalURI = MyFilter.basePath
-								+ "html/ajax/ajax.html#page/freeQuiz";
+						// String originalURI = MyFilter.basePath
+						// + "html/ajax/ajax.html#page/freeQuiz";
+						String basePath = StringUtils.isBlank(MyFilter.basePath) ? "http://english.tiger.mopaas.com/"
+								: MyFilter.basePath;
+						String originalURI = basePath + "html/ajax/ajaxMyFreeQuiz.html";
 						System.out.println("originalURI:" + originalURI);
 						String oauth2URL = "https://open.weixin.qq.com/connect/oauth2/authorize"
 								+ "?appid=wxad1e1211d18cd79d"
@@ -1487,12 +2010,12 @@ public class ArticleServiceImpl {
 						userJSON = userJSON.replace("REPLACE_REMARK", "日拱一卒，点击查看详情");
 						System.out.println("userJSON:" + userJSON);
 						StringEntity requestEntity = new StringEntity(userJSON,
-								"application/json", "UTF-8");
+								ContentType.APPLICATION_JSON);
 						String uri = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="
 								+ accessToken;
 						HttpPost method = new HttpPost(uri);
 						method.setEntity(requestEntity);
-						HttpResponse result = httpClient.execute(method);
+						HttpResponse result = closeableHttpClient.execute(method);
 						String resData = EntityUtils.toString(result.getEntity());
 						JSONObject json = (JSONObject) new JSONParser().parse(resData);
 						System.out.println("errcode:" + json.get("errcode"));
@@ -1510,5 +2033,220 @@ public class ArticleServiceImpl {
 		catch (org.json.simple.parser.ParseException e) {
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * @param userId
+	 * @param articleId
+	 * @param bookMarkIndex
+	 */
+	public void setBookMark(long userId, long articleId, int bookMarkIndex, String type) {
+		UserArticleForkAsso uafa = this.userArticleForkAssoRepository
+				.findByUserIdAndArticleId(userId, articleId);
+		if (uafa == null) {
+			uafa = new UserArticleForkAsso();
+			Article article = new Article();
+			article.setId(articleId);
+			uafa.setArticle(article);
+			User user = new User();
+			user.setId(userId);
+			uafa.setUser(user);
+		}
+		if ("word".equals(type)) {
+			uafa.setBookMarkIndex(bookMarkIndex);
+		}
+		else {
+			uafa.setBookMarkIndexForSen(bookMarkIndex);
+		}
+		uafa.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+		this.userArticleForkAssoRepository.save(uafa);
+	}
+
+	/**
+	 * @param userId
+	 * @param articleId
+	 * @return
+	 */
+	public int getBookMark(long userId, long articleId, String type) {
+		int bookMarkIndex = 0;
+		UserArticleForkAsso uafa = this.userArticleForkAssoRepository
+				.findByUserIdAndArticleId(userId, articleId);
+		if (uafa != null) {
+			if ("word".equals(type)) {
+				bookMarkIndex = uafa.getBookMarkIndex();
+			}
+			else {
+				bookMarkIndex = uafa.getBookMarkIndexForSen();
+			}
+		}
+		return bookMarkIndex;
+	}
+
+	/**
+	 *
+	 */
+	public void initWork() {
+		// long dummyId = -1L;
+		// Article article = this.articleRepository.findOne(dummyId);
+		// if (article == null) {
+		// article = new Article();
+		// article.setId(dummyId);
+		// article.setName("dummy");
+		// this.articleRepository.save(article);
+		// }
+	}
+
+	public String getJSAPITicket(String accessToken) {
+		WebDriver driver = new HtmlUnitDriver();
+
+		String url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token="
+				+ accessToken + "&type=jsapi";
+		driver.get(url);
+		String pageSource = driver.getPageSource();
+		try {
+			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+		System.out.println("pageSource:" + pageSource);
+
+		// {"errcode":0,"errmsg":"ok","ticket":"sM4AOVdWfPE4DxkXGEs8VKKVQl3wRLx9tZtPKOwlUSCE5nvVJtpMR0QjmpKagP8p-cR2ym4bQ6FUh5swvTk0xw",
+		// "expires_in":7200}
+
+		JSONObject json = null;
+		try {
+			json = (JSONObject) new JSONParser().parse(pageSource);
+		}
+		catch (org.json.simple.parser.ParseException e) {
+			e.printStackTrace();
+		}
+		System.out.println("errcode:" + json.get("errcode"));
+		System.out.println("errmsg:" + json.get("errmsg"));
+		String jsapiTicket = (String) json.get("ticket");
+		System.out.println("ticket:" + jsapiTicket);
+		System.out.println("expires_in:" + json.get("expires_in"));
+		return jsapiTicket;
+	}
+
+	public String getAccessToken() {
+		String accessToken = null;
+		WebDriver driver = new HtmlUnitDriver();
+		String url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxad1e1211d18cd79d&secret=4a5a2aa472e9cc890b896623c2c2facf";
+		driver.get(url);
+		String pageSource = driver.getPageSource();
+		try {
+			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException("Auto-generated method stub", e);
+		}
+		System.out.println("pageSource:" + pageSource);
+		try {
+			JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
+			accessToken = (String) json.get("access_token");
+			System.out.println("access_token:" + accessToken);
+			System.out.println("expires_in:" + json.get("expires_in"));
+		}
+		catch (org.json.simple.parser.ParseException e) {
+			e.printStackTrace();
+		}
+		return accessToken;
+	}
+
+	/**
+	 * @return
+	 */
+	public String[] getWXShareInfo(String shareUrl) {
+		String accessToken = getAccessToken();
+		String appId = "wxad1e1211d18cd79d";
+		String jsapiTicket = getJSAPITicket(accessToken);
+		Map<String, String> signMapResult = Sign.sign(jsapiTicket, shareUrl);
+		String timestamp = signMapResult.get("timestamp");
+		String nonceStr = signMapResult.get("nonceStr");
+		String signature = signMapResult.get("signature");
+		return new String[] { appId, timestamp, nonceStr, signature };
+	}
+
+	public void initWordAudio() {
+		String currDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				.format(new Date());
+		System.out.println("currDateStr:" + currDateStr);
+		// List<WordSummary> wordList = null;
+		String sql = "SELECT distinct w.id, w.explain2, w.value, w.pron, w.level, w.audio_path, uwa2.last_upt2, uwa2.effect_date "
+				+ " from word w , ( "
+				+ " select word_id, max(last_upt) last_upt2 , effect_date from user_word_asso "
+				+ " where interest = 1 and (effect_date is null or effect_date <= ? or effect_date > '3000') "
+				+ "  group by word_id " + " ) uwa2 where w.id = uwa2.word_id   ";
+
+		System.out.println("sql:" + sql);
+		// System.out.println("begin getWordListFromQuizResult " + new Date());
+		List<WordBean2> results = this.jdbcTemplate.query(sql,
+				new Object[] { currDateStr }, new RowMapper<WordBean2>() {
+					@Override
+					public WordBean2 mapRow(ResultSet rs, int rowNum) throws SQLException {
+						String audioPath = rs.getString("audio_path");
+						String content = rs.getString("value");
+						String[] contentCharArr = content.split("");
+						String contentCharStr = "";
+						for (int i = 0; i < contentCharArr.length; i++) {
+							contentCharStr += contentCharArr[i] + ", ";
+						}
+						String content2 = content + " " + contentCharStr + " " + content;
+						if (StringUtils.isBlank(audioPath)) {
+							audioPath = MyUtil.genAudioFile(
+									ArticleServiceImpl.this.mySettings.getAudioDir(),
+									content2);
+						}
+
+						long wordId = rs.getLong("id");
+						if (StringUtils.isNotBlank(audioPath)) {
+							Word word = ArticleServiceImpl.this.wordRepository
+									.findOne(wordId);
+							word.setAudioPath(audioPath);
+							word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+									.format(new Date()));
+							ArticleServiceImpl.this.wordRepository.save(word);
+						}
+						return new WordBean2(wordId, content, rs.getString("explain2"),
+								rs.getString("pron"), audioPath, rs
+										.getString("last_upt2"));
+
+					}
+				});
+
+	}
+
+	public void initSenAudio() {
+		String audioDirStr = this.mySettings.getAudioDir();
+		System.out.println("mySettings.getAudioDir():" + audioDirStr);
+
+		String sql = "SELECT s.id, s.content, s.last_upt, s.audio_path FROM sentence s, user_sen_asso usa "
+				+ " where s.id = usa.sen_id " + " and usa.useful_flag = 'Yes' ";
+
+		System.out.println("sql:" + sql);
+		List<SenBean> results = this.jdbcTemplate.query(sql, new RowMapper<SenBean>() {
+			@Override
+			public SenBean mapRow(ResultSet rs, int rowNum) throws SQLException {
+				String audioPath = rs.getString("audio_path");
+				String content = rs.getString("content");
+				if (StringUtils.isBlank(audioPath)) {
+					audioPath = MyUtil.genAudioFile(
+							ArticleServiceImpl.this.mySettings.getAudioDir(), content);
+				}
+				long senId = rs.getLong("id");
+				if (StringUtils.isNotBlank(audioPath)) {
+					Sentence senDB = ArticleServiceImpl.this.sentenceRepository
+							.findOne(senId);
+					senDB.setAudioPath(audioPath);
+					senDB.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+							.format(new Date()));
+					ArticleServiceImpl.this.sentenceRepository.save(senDB);
+				}
+				return new SenBean(senId, content, "", audioPath, rs
+						.getString("last_upt"));
+
+			}
+		});
 	}
 }

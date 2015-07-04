@@ -1,5 +1,4 @@
 
-<title>jqGrid - Ace Admin</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../../assets/css/jquery-ui.min.css" />
 <link rel="stylesheet" href="../../assets/css/datepicker.css" />
@@ -38,6 +37,9 @@
 			</div>
 			<div id="loading" style="font-size: 20px;display: none;">Loading....</div>
 			<button id="loadMoreBtn"  class="btn btn-info" style="display: none;" type="button"  onclick="refreshWordList()">加载更多</button>
+			
+			标为完成: <input type="checkbox" onchange='toggleArticleStatus(this)' />
+			
 		</div>
 		
 		<table id="grid-table"></table>
@@ -63,31 +65,136 @@
 	ace.load_ajax_scripts(scripts, function() {
 	  //inline scripts related to this page
 		jQuery(function($) { 
-			refreshWordList();
+			articleId = GetArgsFromHref(window.location.href, "articleId");
+			articleId = articleId.replace("#page/words2", "");
+			if(articleId == "") {
+				return;
+			} else {
+				$
+				.ajax({
+					type : "POST",
+					url : "../../getArticle",
+					data : {
+						articleId : articleId
+					},
+					async : true,
+					dataType : "json",
+					success : function(data) {
+						var oneArticleHtml = "";
+						oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
+						var name = data.name;
+						var url = data.url;
+						var remark = data.remark;
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td colspan=2>素材";
+						oneArticleHtml += " ID:" + data.id;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "</tr>";
+						if(name != "") {
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td>名称</td>";
+							oneArticleHtml += "	  <td>";
+							oneArticleHtml += 		name;
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+						}
+						if(url != "") {
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td>来源</td>";
+							oneArticleHtml += "	  <td>";
+							oneArticleHtml += 		"<a target='_blank' href='" + url + "'>" + url.substr(0, 15) + "...</a>";
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "<tr>";
+						}
+						if(remark != "") {
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td>备注</td>";
+							oneArticleHtml += "	  <td>";
+							oneArticleHtml += 		remark;
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "<tr>";
+						}
+						oneArticleHtml += "	  <td>类型</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		data.type;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "</tr>";
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td>共享</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		data.openFlag;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td>创建时间</td>";
+						oneArticleHtml += "	  <td>";
+						oneArticleHtml += 		data.lastUpt;
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "</tr>";
+						oneArticleHtml += "<tr>";
+						oneArticleHtml += "	  <td align='center' colspan=2>";
+						oneArticleHtml += "      <button class='btn btn-info' type='button' onclick='showSenDetail(" + data.id +  ")' >句子</button>&nbsp;&nbsp;<button class='btn btn-info' type='button' onclick='deleteArticle(this, " + data.id  + ")' >删除</button>";
+						oneArticleHtml += "	  </td>";
+						oneArticleHtml += "</tr>";
+						oneArticleHtml += "</table>";
+						$("#articleInfo").html(oneArticleHtml);
+					},
+					error : function(data) {
+						alert("submit result error, please contact administrator");
+					}
+
+				});
+			}
 			
-			//$(document).scrollTop(0);
-			$(window).scroll(function(){
-				  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
-				//		   + " $(window).height():" + $(window).height());
-				if(allLoadDone) {
-					return;
-				}
-		        if($(document).scrollTop() >= $(document).height() - $(window).height()){
-		        	$("#loading").show();
-		        	refreshWordList();
-		        	$("#loading").hide();
-		        }
-		      });	
+			var bookMark = getBookMark(); 
+			currPage = parseInt((parseInt(bookMark) - 1  + 10) / 10);
+			currMaxRowIndex = (currPage - 1) * 10 + 1;
+			if(currMaxRowIndex < 0) {
+				currMaxRowIndex = 1;
+			}
+			if(currPage < 1) {
+				currPage = 1;
+			}
+			if(currPage != 1) {
+				bootbox.confirm("是否直接跳到上次书签(" + bookMark + ")所在的组位置？", function(result) {
+					if(result) {
+						initWork();
+					} else {
+						currPage = 1;
+						currMaxRowIndex = 1;
+						initWork();
+					}
+				});
+			} else {
+				initWork();
+			}
 		});
 	});
 	
+	var loading = false;
+	function initWork() {
+		console.log("currPage:" + currPage + " currMaxRowIndex:" + currMaxRowIndex);
+		refreshWordList();
+		
+		$(document).scrollTop(0);
+		$(window).scroll(function(){
+			  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
+			//		   + " $(window).height():" + $(window).height());
+			if(allLoadDone) {
+				return;
+			}
+	        if($(document).scrollTop() >= $(document).height() - $(window).height()){
+	        	if(!loading) {
+		        	$("#loading").show();
+		        	refreshWordList();
+		        	$("#loading").hide();
+	        	}
+	        }
+	      });	
+	}
+	
+	
 	function refreshWordList() {
-		articleId = GetArgsFromHref(window.location.href, "articleId");
-		articleId = articleId.replace("#page/words2", "");
-		$("#articleInfo").html("文章ID: " + articleId);
-		if(articleId == "") {
-			return;
-		}
+		loading = true;
 		console.log("refreshWordList articleId:" + articleId);
 		$
 				.ajax({
@@ -98,7 +205,7 @@
 						rows : rowSize,
 						articleId : articleId
 					},
-					async : false,
+					async : true,
 					dataType : "json",
 					success : function(data) {
 						if(currPage >= data.total) {
@@ -113,25 +220,21 @@
 							var oneArticleHtml = "<div  style='border: 3px dashed #ccc;margin-top:5px;'   >";
 							oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
 							oneArticleHtml += "<tr>";
-							oneArticleHtml += "	  <td colspan=2>第" + (currMaxRowIndex++) + "个</td>";
+							oneArticleHtml += "	  <td colspan=2>" + (currMaxRowIndex)  + "/" + data.records + ":  " + data.rows[i].value + "</td>";
 							oneArticleHtml += "</tr>";
 							oneArticleHtml += "<tr>";
 							oneArticleHtml += "	  <td colspan=2>";
-							oneArticleHtml += "	    " + data.rows[i].value;
-							oneArticleHtml += "	  </td>";
-							oneArticleHtml += "</tr>";
-							oneArticleHtml += "	  <td colspan=2>";
-							oneArticleHtml += "	    " + data.rows[i].pron;
-							oneArticleHtml += "	  </td>";
-							oneArticleHtml += "</tr>";
-							oneArticleHtml += "<tr>";
-							oneArticleHtml += "	  <td colspan=2>";
-							oneArticleHtml += "	    " + data.rows[i].explain2;
+							oneArticleHtml += "	    " + data.rows[i].pron + " " + data.rows[i].explain2;
 							oneArticleHtml += "	  </td>";
 							oneArticleHtml += "</tr>";
 							oneArticleHtml += "<tr>";
 							oneArticleHtml += "	  <td colspan=2>";
 							oneArticleHtml += "	    出现频次: " + data.rows[i].tempHit;
+							
+							for(var j = 0; j < data.rows[i].tempRank; j++) {
+								oneArticleHtml += "<img width='20' height='20' src='../../assets/images/star_full.png' />";
+							}
+							
 							oneArticleHtml += "	  </td>";
 							oneArticleHtml += "</tr>";
 							oneArticleHtml += "<tr>";
@@ -148,6 +251,7 @@
 							oneArticleHtml += "<tr>";
 							oneArticleHtml += "	  <td colspan=2>";
 							oneArticleHtml += '		<button  class="btn btn-info" type="button"  onclick="getSenList(this, ' + data.rows[i].id + ')">查看例句</button>';
+							oneArticleHtml += '		&nbsp;&nbsp;书签: <input type="radio" onclick="setBookMark(' + currMaxRowIndex + ')" name="bookmarkRadio" id="bookmark_' + data.rows[i].id + '"/>';
 							oneArticleHtml += '		<div   style="border: 2px dashed #ccc;margin-top:5px;" id=senDiv_' + data.rows[i].id + '></div>';
 							oneArticleHtml += "	  </td>";
 							oneArticleHtml += "</tr>";
@@ -157,13 +261,61 @@
 							 
 							//alert("oneArticleHtml:" + oneArticleHtml);
 							$("#mySenList").append(oneArticleHtml);
+							
+							currMaxRowIndex++;
 						}
+						loading = false;
+						
 					},
 					error : function(data) {
 						alert("submit result error, please contact administrator");
 					}
 
 				});
+	}
+	
+	
+	function setBookMark(bookMarkIndex) {
+		$.ajax({
+			type : "POST",
+			url : "../../setBookMark",
+			data : {
+				articleId : articleId,
+				bookMarkIndex : bookMarkIndex,
+				type : 'word'
+			},
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	
+	function getBookMark() {
+		var bookMarkIndex = 0;
+		$.ajax({
+			type : "POST",
+			url : "../../getBookMark",
+			data : {
+				articleId : articleId,
+				type : 'word'
+			},
+			async : false,
+			dataType : "text",
+			success : function(data) {
+				bookMarkIndex = data;
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+		});
+		return bookMarkIndex;
 	}
 	
 	function toggleForkSen(spanObj, senId) {
@@ -199,37 +351,6 @@
 	
 	
 
-	function toggleForkWord(spanObj, wordId) {
-		console.log("toggleFork wordId:" + wordId);
-		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 1 : 0; 
-		if(forkValue == 0) {
-			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
-		} else {
-			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
-		}					
-		$.ajax({
-			type : "POST",
-			url : "../../toggleWordFork",
-			data : {
-				wordId : wordId,
-				forkValue : forkValue
-			},
-			async : true,
-			dataType : "json",
-			success : function(data) {
-				if(data == "0") {
-					alert("please login first");
-				}
-				//rowData.tempRank = parseRank(newRank);
-				//$("#grid-table").jqGrid('setRowData', id, rowData);
-			},
-			error : function(data) {
-				alert("submit result error, please contact administrator");
-			}
-
-		});
-	}
-	
 	function getSenList(obj, wordId) {
 		$("#senDiv_" + wordId).html("");
 		$.ajax({
@@ -274,4 +395,25 @@
 		});
 	}
 	
+	function toggleArticleStatus(cbObj) {
+		console.log("cbObj.checked:" + cbObj.checked);
+		$.ajax({
+			type : "POST",
+			url : "../../updateArticleStatus",
+			data : {
+				articleId : articleId,
+				status : cbObj.checked
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("set error, please contact administrator");
+			}
+
+		});
+	}
 </script>

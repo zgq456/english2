@@ -60,12 +60,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		http.headers().cacheControl().disable();
 
 		http.authorizeRequests().antMatchers("/assets/**").permitAll();
+		http.authorizeRequests().antMatchers("/audiofiles/**").permitAll();
 		http.authorizeRequests().antMatchers("/login").permitAll();
 		http.authorizeRequests().antMatchers("/myregister").permitAll();
 		// http.authorizeRequests().antMatchers("/**").permitAll();
 		http.authorizeRequests().antMatchers("/weixinLogin").permitAll();
 		http.authorizeRequests().antMatchers("/weixin").permitAll();
 		http.authorizeRequests().antMatchers("/getUserName").permitAll();
+		http.authorizeRequests().antMatchers("/initWork").permitAll();
 
 		http.authorizeRequests().anyRequest().authenticated().and().formLogin()
 				.defaultSuccessUrl("/html/ajax/ajax.html", false)

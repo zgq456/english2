@@ -36,21 +36,34 @@ public interface SentenceRepository extends CrudRepository<Sentence, Long> {
 	// Page<SenSummary> findByArticleUserId2(@Param("id") Long userId,
 	// @Param("articleId") Long articleId, Pageable pageable);
 
-	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, t1.audio_path, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
 			+ " and a.user_id = :id and lower(s.content) like :wordStr ) as t1"
 			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
 			+ " order by useful_flag desc, t1.last_upt desc limit 0, 50", nativeQuery = true)
 	List<Sentence> findByArticleUserIdSubGrid(@Param("id") Long userId,
 			@Param("wordStr") String word);
 
-	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
-			+ " and a.user_id = :id and lower(s.content) like :wordStr and a.id = :articleId ) as t1"
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag, t1.audio_path from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
+			+ " and lower(s.content) like :wordStr and a.id = :articleId ) as t1"
 			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
 			+ " order by useful_flag desc, t1.last_upt desc limit 0, 15", nativeQuery = true)
 	List<Sentence> findByArticleUserIdSubGrid2(@Param("id") Long userId,
 			@Param("articleId") Long articleId, @Param("wordStr") String word);
 
-	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1  "
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, t1.audio_path, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
+			+ " and a.user_id = :id and lower(s.content) like :wordStr  ) as t1"
+			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
+			+ " order by useful_flag desc, t1.last_upt desc limit 0, 15", nativeQuery = true)
+	List<Sentence> findSubGrid3(@Param("id") Long userId, @Param("wordStr") String word);
+
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, t1.audio_path, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1 and a.hide_flag = 'No' "
+			+ " and lower(s.content) like :wordStr  ) as t1"
+			+ " left join user_sen_asso usa on usa.sen_id = t1.id  and usa.user_id = :userId "
+			+ " order by useful_flag desc, t1.last_upt desc limit 0, 15", nativeQuery = true)
+	List<Sentence> findSubGrid4(@Param("wordStr") String word,
+			@Param("userId") Long userId);
+
+	@Query(value = "select t1.id, t1.content, t1.create_date, t1.last_upt, t1.article_id, t1.audio_path, usa.useful_flag temp_flag from (select s.* from sentence s, article a  where s.article_id = a.id and a.delete_flag != 1  "
 			+ " and a.user_id = :id and lower(s.content) like :wordStr ) as t1"
 			+ " left join user_sen_asso usa on usa.sen_id = t1.id and usa.user_id = :id"
 			+ " order by useful_flag desc, t1.last_upt desc limit 0, 50", nativeQuery = true)
@@ -66,6 +79,6 @@ public interface SentenceRepository extends CrudRepository<Sentence, Long> {
 	@Query("select count(a) from Sentence a where a.article.user.id = :id and a.article.deleteFlag != 1 and a.article.hideFlag = 'No'")
 	public Long getUserTotalCount(@Param("id") Long id);
 
-	@Query(value = "select id, content, create_date, last_upt, article_id, 1 temp_flag  from sentence where article_id = -1 and lower(content) like :wordStr", nativeQuery = true)
+	@Query(value = "select id, content, create_date, last_upt, article_id, 1 temp_flag, audio_path  from sentence where article_id = -1 and lower(content) like :wordStr", nativeQuery = true)
 	List<Sentence> findInDummyArticle(@Param("wordStr") String word);
 }

@@ -18,7 +18,6 @@ package sample.data.jpa.web;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -27,11 +26,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,8 +37,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.ModelAndView;
 
 import sample.data.jpa.domain.Article;
+import sample.data.jpa.domain.ArticleBean;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
@@ -53,6 +49,7 @@ import sample.data.jpa.domain.SenSummary;
 import sample.data.jpa.domain.Sentence;
 import sample.data.jpa.domain.User;
 import sample.data.jpa.domain.Word;
+import sample.data.jpa.domain.WordBean2;
 import sample.data.jpa.service.ArticleServiceImpl;
 import sample.data.jpa.service.CityService;
 import sample.data.jpa.service.JqGridData;
@@ -78,35 +75,10 @@ public class SampleController {
 		System.out.println("dailyNotify invoke "
 				+ new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 
-		String accessToken = getAccessToken();
+		String accessToken = this.articleService.getAccessToken();
 
 		this.articleService.sendMsg(accessToken);
 
-	}
-
-	private String getAccessToken() {
-		String accessToken = null;
-		WebDriver driver = new HtmlUnitDriver();
-		String url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxad1e1211d18cd79d&secret=4a5a2aa472e9cc890b896623c2c2facf";
-		driver.get(url);
-		String pageSource = driver.getPageSource();
-		try {
-			pageSource = new String(pageSource.getBytes("ISO-8859-1"), "UTF-8");
-		}
-		catch (UnsupportedEncodingException e) {
-			throw new UnsupportedOperationException("Auto-generated method stub", e);
-		}
-		System.out.println("pageSource:" + pageSource);
-		try {
-			JSONObject json = (JSONObject) new JSONParser().parse(pageSource);
-			accessToken = (String) json.get("access_token");
-			System.out.println("access_token:" + accessToken);
-			System.out.println("expires_in:" + json.get("expires_in"));
-		}
-		catch (ParseException e) {
-			throw new RuntimeException(e);
-		}
-		return accessToken;
 	}
 
 	@RequestMapping("/getUser")
@@ -179,13 +151,14 @@ public class SampleController {
 	// }
 
 	@RequestMapping("/")
-	@ResponseBody
+	// @ResponseBody
 	@Transactional(readOnly = true)
-	public String helloWorld(HttpServletRequest request) {
+	public ModelAndView helloWorld(HttpServletRequest request) {
 		System.out.println("helloword");
 		// return this.cityService.getCity("Bath", "UK").getName();
-		return "test2 " + new Date().toString() + " user:"
-				+ request.getSession().getAttribute("userName");
+		// return "test2 " + new Date().toString() + " user:"
+		// + request.getSession().getAttribute("userName");
+		return new ModelAndView("/index.html");
 	}
 
 	@RequestMapping("/getArticleList")
@@ -203,9 +176,27 @@ public class SampleController {
 	@Transactional(readOnly = true)
 	public String getArticleList2(HttpServletRequest request, int rows, int page,
 			String sidx, String sord) {
-		JqGridData<Article> gridDataList = this.articleService.getArticleList(
+		JqGridData<ArticleBean> gridDataList = this.articleService.getArticleList2(
 				getUserId(), rows, page, sidx, sord);
 		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getArticleList2Others")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getArticleList2Others(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<ArticleBean> gridDataList = this.articleService.getArticleList2Others(
+				getUserId(), rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getArticle")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public ArticleBean getArticle(long articleId) {
+		ArticleBean articleBean = this.articleService.getArticle(getUserId(), articleId);
+		return articleBean;
 	}
 
 	@RequestMapping("/getQuizList")
@@ -269,6 +260,24 @@ public class SampleController {
 		return gridDataList.getJsonString();
 	}
 
+	@RequestMapping("/getSenListForSubGrid3")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getSenListForSubGrid3(Long wordId) {
+		JqGridData<Sentence> gridDataList = this.articleService.getSenListForSubGrid3(
+				wordId, getUserId());
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getSenListForSubGrid4")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getSenListForSubGrid4(Long wordId) {
+		JqGridData<Sentence> gridDataList = this.articleService.getSenListForSubGrid4(
+				wordId, getUserId());
+		return gridDataList.getJsonString();
+	}
+
 	@RequestMapping("/getWordList")
 	@ResponseBody
 	@Transactional(readOnly = true)
@@ -287,6 +296,59 @@ public class SampleController {
 		JqGridData<Word> gridDataList = this.articleService.getWordList2(getUserId(),
 				articleId, rows, page, sidx, sord);
 		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getWordList2ForSingle")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getWordList2ForSingle(HttpServletRequest request, long articleId,
+			String wordValue) {
+		JqGridData<Word> gridDataList = this.articleService.getWordList2ForSingle(
+				getUserId(), articleId, wordValue);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getMyWordList")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getMyWordList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<WordBean2> gridDataList = this.articleService.getMyWordList(
+				getUserId(), rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getOthersWordList")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getOthersWordList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<WordBean2> gridDataList = this.articleService.getOthersWordList(
+				getUserId(), rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getMySenList")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getMySenList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<SenBean> gridDataList = this.articleService.getMySenList(getUserId(),
+				rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/setBookMark")
+	@ResponseBody
+	public String setBookMark(long articleId, int bookMarkIndex, String type) {
+		this.articleService.setBookMark(getUserId(), articleId, bookMarkIndex, type);
+		return "";
+	}
+
+	@RequestMapping("/getBookMark")
+	@ResponseBody
+	public String getBookMark(long articleId, String type) {
+		return this.articleService.getBookMark(getUserId(), articleId, type) + "";
 	}
 
 	// @RequestParam("file") MultipartFile file,
@@ -380,6 +442,13 @@ public class SampleController {
 		return "1";
 	}
 
+	@RequestMapping("/updateArticleStatus")
+	@ResponseBody
+	public String updateArticleStatus(Long articleId, boolean status) {
+		this.articleService.updateArticleStatus(articleId, getUserId(), status);
+		return "1";
+	}
+
 	@RequestMapping("/submitAnswer")
 	@ResponseBody
 	public String submitAnswer(String answerInfo, long qId) {
@@ -469,6 +538,25 @@ public class SampleController {
 		return this.articleService.getRateForQuiz(qId, getUserId());
 	}
 
+	@RequestMapping("/getMyWordSummary")
+	@ResponseBody
+	public Integer[] getMyWordSummary() {
+		Integer[] summaryData = this.articleService.getMyWordSummary(getUserId());
+		return summaryData;
+	}
+
+	@RequestMapping("/getMyReminderInfo")
+	@ResponseBody
+	public String getMyReminderInfo() {
+		return this.articleService.getMyReminderInfo(getUserId());
+	}
+
+	@RequestMapping("/saveMyReminderInfo")
+	@ResponseBody
+	public String saveMyReminderInfo(String hour) {
+		return this.articleService.saveMyReminderInfo(getUserId(), hour);
+	}
+
 	@RequestMapping("/getWordListForQuiz2")
 	@ResponseBody
 	public List<QuizWordBean> getWordListForQuiz2(long id, String password) {
@@ -496,6 +584,50 @@ public class SampleController {
 	public String ignoreWord(long wordId, long days) {
 		return this.articleService.ignoreWord(wordId, days, getUserId());
 
+	}
+
+	@RequestMapping("/initWork")
+	@ResponseBody
+	public String initWork() {
+		this.articleService.initWork();
+		return "initWorkDone";
+	}
+
+	@RequestMapping("/initSenAudio")
+	@ResponseBody
+	public String initSenAudio() {
+		this.articleService.initSenAudio();
+		return "done";
+	}
+
+	@RequestMapping("/initWordAudio")
+	@ResponseBody
+	public String initWordAudio() {
+		this.articleService.initWordAudio();
+		return "done";
+	}
+
+	@RequestMapping("/initAudio")
+	@ResponseBody
+	public String initAudio() {
+		System.out.println("###initAudio:");
+		initAudioJob();
+		return "done";
+	}
+
+	/**
+	 *
+	 */
+	@Scheduled(cron = "0 30 * * * ?")
+	public void initAudioJob() {
+		this.articleService.initWordAudio();
+		this.articleService.initSenAudio();
+	}
+
+	@RequestMapping("/getWXShareInfo")
+	@ResponseBody
+	public String[] getWXShareInfo(String shareUrl) {
+		return this.articleService.getWXShareInfo(shareUrl);
 	}
 	// String name = "test_" + new Date() + ".txt";
 	// if (!file.isEmpty()) {

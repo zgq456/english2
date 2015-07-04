@@ -35,9 +35,26 @@ public class Sentence implements Serializable {
 	private String createDate;
 
 	@Column(nullable = true)
+	private String audioPath;
+
+	@Column(nullable = true)
 	private String tempFlag;
 
 	public Sentence() {
+	}
+
+	/**
+	 * @return the audioPath
+	 */
+	public String getAudioPath() {
+		return this.audioPath;
+	}
+
+	/**
+	 * @param audioPath the audioPath to set
+	 */
+	public void setAudioPath(String audioPath) {
+		this.audioPath = audioPath;
 	}
 
 	public String getTempFlag() {
@@ -85,9 +102,9 @@ public class Sentence implements Serializable {
 	}
 
 	public void setContent(String content) {
-		if (content != null && content.length() >= 255) {
-			content = content.substring(0, 250) + "...";
-		}
+		// if (content != null && content.length() >= 255) {
+		// content = content.substring(0, 250) + "...";
+		// }
 		this.content = content;
 	}
 

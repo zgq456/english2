@@ -43,6 +43,12 @@ public class UserArticleForkAsso implements Serializable {
 
 	private String lastUpt;
 
+	private int bookMarkIndex;
+
+	private int bookMarkIndexForSen;
+
+	private String status;
+
 	public UserArticleForkAsso() {
 	}
 
@@ -70,6 +76,14 @@ public class UserArticleForkAsso implements Serializable {
 		this.user = user;
 	}
 
+	public String getStatus() {
+		return this.status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
 	public String getLastUpt() {
 		return this.lastUpt;
 	}
@@ -80,6 +94,22 @@ public class UserArticleForkAsso implements Serializable {
 
 	public static long getSerialversionuid() {
 		return serialVersionUID;
+	}
+
+	public int getBookMarkIndex() {
+		return this.bookMarkIndex;
+	}
+
+	public void setBookMarkIndex(int bookMarkIndex) {
+		this.bookMarkIndex = bookMarkIndex;
+	}
+
+	public int getBookMarkIndexForSen() {
+		return this.bookMarkIndexForSen;
+	}
+
+	public void setBookMarkIndexForSen(int bookMarkIndexForSen) {
+		this.bookMarkIndexForSen = bookMarkIndexForSen;
 	}
 
 	// @Override

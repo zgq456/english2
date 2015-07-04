@@ -56,10 +56,10 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 	// "testResult", nativeQuery = true)
 	// List<WordBean> findByUserId2(@Param("id") Long userId); // , Pageable pageable
 
-	@Query(value = "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, "
+	@Query(value = "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, t1.audio_path, "
 			+ " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort, t1.last_upt, t1.low_value, t1.mark, t1.hit temp_hit, t1.hit hit_sort, "
 			+ " uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id from ("
-			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
+			+ " select w.id word_id, w.value, w.explain2, w.pron, w.audio_path,  sum(awa.hit) hit, w.low_value, w.create_date, "
 			+ " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
 			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.delete_flag = 0 and a.hide_flag = 'No' "
 			+ "	group by w.id "
@@ -82,19 +82,80 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 	List<Word> findByUserId3(@Param("id") Long userId, @Param("page") int page,
 			@Param("size") int size, @Param("sort") String sort); // ,, @Param("sidx")
 
-	@Query(value = "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, "
-			+ " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort, t1.last_upt, t1.low_value, t1.mark, t1.hit temp_hit, t1.hit hit_sort, "
-			+ " uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id, uwo.interest temp_interest from ("
-			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
-			+ " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
-			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
-			+ "	group by w.id "
-			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id order by "
+	// @Query(value =
+	// "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, "
+	// +
+	// " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort, t1.last_upt, t1.low_value, t1.mark, t1.hit temp_hit, t1.hit hit_sort, "
+	// +
+	// " uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id, uwo.interest temp_interest from ("
+	// +
+	// " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
+	// +
+	// " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
+	// +
+	// " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
+	// + "	group by w.id "
+	// +
+	// " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id order by "
+	// + " level asc, hit desc limit :page, :size", nativeQuery = true)
+	@Query(value = "select  t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.audio_path, "
+			+ " t1.create_date, t1.explain2,"
+			+ " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort,"
+			+ " t1.last_upt, t1.low_value, t1.mark, t1.hit temp_hit, t1.hit hit_sort,"
+			+ "  uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id, "
+			+ " uwo.interest temp_interest   from ("
+			+ " select w.id word_id, w.value, w.explain2, w.pron, "
+			+ " sum(awa.hit) hit, w.low_value, w.create_date, "
+			+ " w.last_upt, w.mark, w.audio_path, a.user_id, w.level "
+			+ "from word w,  article a , article_word_asso awa "
+			+ "where w.id = awa.word_id and a.id = awa.article_id "
+			+ "and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
+			+ "group by w.id ) t1 left join user_word_asso uwo "
+			+ " on t1.word_id = uwo.word_id and uwo.user_id = :id order by "
 			+ " level asc, hit desc limit :page, :size", nativeQuery = true)
 	List<Word> findByUserId4(@Param("id") Long userId,
 			@Param("articleId") Long articleId, @Param("page") int page,
 			@Param("size") int size); // ,, @Param("sidx")
 										// String sidx,
+
+	@Query(value = "select  count(*)   from ("
+			+ " select w.id word_id, w.value, w.explain2, w.pron, "
+			+ " sum(awa.hit) hit, w.low_value, w.create_date, "
+			+ " w.last_upt, w.mark, a.user_id, w.level "
+			+ "from word w,  article a , article_word_asso awa "
+			+ "where w.id = awa.word_id and a.id = awa.article_id "
+			+ "and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
+			+ "group by w.id ) t1 left join user_word_asso uwo "
+			+ " on t1.word_id = uwo.word_id and uwo.user_id = :id ", nativeQuery = true)
+	Long getWordTotalCount2(@Param("id") Long userId, @Param("articleId") Long articleId);
+
+	// @Query(value =
+	// "select t1.word_id id, t1.word_id id_sort, t1.value, t1.value value_sort, t1.create_date, t1.explain2, "
+	// +
+	// " t1.explain2 explain_sort, t1.level, t1.pron, t1.pron pron_sort, t1.last_upt, t1.low_value, t1.mark, "
+	// + " t1.hit temp_hit, t1.hit hit_sort, "
+	// +
+	// " uwo.rank temp_rank, uwo.rank rank_sort, t1.user_id temp_user_id, uwo.interest temp_interest from ("
+	// +
+	// " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
+	// +
+	// " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
+	// +
+	// " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId  "
+	// + " and w.low_value = :wordValue and a.delete_flag = 0 and a.hide_flag = 'No' "
+	// + "	group by w.id "
+	// +
+	// " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id",
+	// nativeQuery = true)
+	@Query(value = "select w.word_id id, w.value, w.create_date, w.explain2, w.level, w.audio_path, w.pron, "
+			+ " w.last_upt, w.low_value, w.mark, 0 temp_hit, 0 temp_rank, uwo.interest temp_interest, 0 temp_user_id from ( "
+			+ " select w.id word_id, w.value, w.explain2, w.pron, w.low_value, w.create_date, w.audio_path, "
+			+ " w.last_upt, w.mark, w.level from word w where w.low_value = :wordValue "
+			+ ")  w left join user_word_asso uwo on w.word_id = uwo.word_id and user_id = :userId", nativeQuery = true)
+	List<Word> findByUserId5(@Param("userId") Long userId,
+			@Param("wordValue") String wordValue); // ,,
+													// @Param("sidx")
+	// String sidx,
 
 	// @Query(value = "select count(*)  from ("
 	// +
@@ -114,11 +175,4 @@ public interface WordRepository extends CrudRepository<Word, Long> {
 			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id   ", nativeQuery = true)
 	Long getWordTotalCount(@Param("id") Long userId);
 
-	@Query(value = "select count(*) from ("
-			+ " select w.id word_id, w.value, w.explain2, w.pron, sum(awa.hit) hit, w.low_value, w.create_date, "
-			+ " w.last_upt, w.mark, a.user_id, w.level from word w,  article a , article_word_asso awa "
-			+ " where w.id = awa.word_id and a.id = awa.article_id and a.user_id = :id and a.id = :articleId and a.delete_flag = 0 and a.hide_flag = 'No' "
-			+ "	group by w.id "
-			+ " ) as t1 left join user_word_asso uwo on t1.word_id = uwo.word_id and uwo.user_id = :id   ", nativeQuery = true)
-	Long getWordTotalCount2(@Param("id") Long userId, @Param("articleId") Long articleId);
 }

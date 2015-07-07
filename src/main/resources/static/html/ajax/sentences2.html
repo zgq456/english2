@@ -84,10 +84,10 @@
 	</div><!-- /.col -->
 </div><!-- /.row -->
 
-<!-- page specific plugin scripts -->
+<!-- page specific plugin scripts "http://res.wx.qq.com/open/js/jweixin-1.0.0.js",  -->
 <script type="text/javascript">
-	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js","../../assets/js/jquery.lettering.js",
-	               "http://res.wx.qq.com/open/js/jweixin-1.0.0.js", null]
+	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js"
+	               ,"../../assets/js/jquery.lettering.js", null]
 	var currPage = 1;
 	var rowSize = 10;
 	var currMaxRowIndex = 1;
@@ -100,7 +100,7 @@
 			articleId = articleId.replace("#page/sentences2", "");
 			$("#articleInfo").html("文章ID: " + articleId);
 			
-			initWeiXinInfo();
+			//initWeiXinInfo();
 			
 			$
 			.ajax({

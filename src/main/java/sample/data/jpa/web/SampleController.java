@@ -557,7 +557,7 @@ public class SampleController {
 				throw new UnsupportedOperationException("Auto-generated method stub", e);
 			}
 			// store the bytes somewhere
-			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥æ&nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤¹
+			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥�?nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤�?
 
 		}
 		else {
@@ -573,9 +573,15 @@ public class SampleController {
 			try {
 				byte[] bytes = file.getBytes();
 				System.out.println("bytes:" + bytes);
-				File destFile = new File(this.mySettings.getAudioDir() + File.separator
-						+ file.getOriginalFilename()); // + "_" +
-														// System.currentTimeMillis() +
+				String audioDir = this.mySettings.getAudioDir();
+				String fileName = file.getOriginalFilename();
+				String fileName2 = file.getName();
+				System.out.println("audioDir:" + audioDir);
+				System.out.println("fileName:" + fileName);
+				System.out.println("fileName2:" + fileName2);
+				File destFile = new File(audioDir + File.separator + fileName); // + "_" +
+																				// System.currentTimeMillis()
+																				// +
 														// ".mp3"
 				System.out.println("destFile:" + destFile.getAbsolutePath());
 				FileUtils.writeByteArrayToFile(destFile, bytes);
@@ -585,7 +591,7 @@ public class SampleController {
 				throw new UnsupportedOperationException("Auto-generated method stub", e);
 			}
 			// store the bytes somewhere
-			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥æ&nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤¹
+			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥�?nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤�?
 
 		}
 		else {

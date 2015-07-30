@@ -74,6 +74,7 @@ import org.xml.sax.SAXException;
 import sample.data.jpa.SampleDataJpaApplication;
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.ArticleBean;
+import sample.data.jpa.domain.Audio;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
@@ -96,6 +97,7 @@ import sample.data.jpa.domain.WordRelation;
 import sample.data.jpa.domain.WordSummary;
 import sample.data.jpa.repository.ArticleRepository;
 import sample.data.jpa.repository.ArticleWordAssoRepository;
+import sample.data.jpa.repository.AudioRepository;
 import sample.data.jpa.repository.GroupRepository;
 import sample.data.jpa.repository.HotelRepository;
 import sample.data.jpa.repository.QuizContentRepository;
@@ -143,6 +145,8 @@ public class IgnoreWordRepositoryIntegration {
 	QuizRepository quizRepository;
 	@Autowired
 	QuizContentRepository quizContentRepository;
+	@Autowired
+	AudioRepository audioRepository;
 
 	@Autowired
 	ArticleServiceImpl articleService;
@@ -569,7 +573,7 @@ public class IgnoreWordRepositoryIntegration {
 		user.setDegree("DO");
 		user.setAge(30);
 		user.setAboutMe("Be Yourself");
-		user.setPassword("1234");
+		user.setPassword("xxxx");
 		// user.setName("ZXH");
 		// user.setEmail("479851019@qq.com");
 		// user.setWechat("479851019");
@@ -968,6 +972,23 @@ public class IgnoreWordRepositoryIntegration {
 		}
 		String content2 = content + " " + contentCharStr + " " + content;
 		System.out.println(content2);
+	}
+
+	@Test
+	public void testAddAudio() {
+		Audio audio = new Audio();
+		audio.setName("first");
+		audio.setUrl("test.mp3");
+		audio.setDuration(50000);
+		audio.setPassword("xxx");
+		audio.setShowAnswerOnlyWhenReply(true);
+		audio.setCreateDate(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				.format(new Date()));
+		audio.setRemark("remark...");
+
+		User user = this.userRepository.findOne(1L);
+		audio.setUser(user);
+		this.audioRepository.save(audio);
 	}
 
 }

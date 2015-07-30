@@ -126,6 +126,11 @@ public class User implements Serializable {
 	// fetch = FetchType.EAGER,
 	private List<UserArticleForkAsso> forkArticles;
 
+	@OneToMany(mappedBy = "user")
+	// , cascade = { CascadeType.ALL }
+	// fetch = FetchType.EAGER,
+	private List<Audio> audios;
+
 	@ManyToMany
 	@JoinTable(name = "uesr_role", joinColumns = { @JoinColumn(name = "user_id") }, inverseJoinColumns = { @JoinColumn(name = "role_id") })
 	private Set<Role> roles = new HashSet<Role>();

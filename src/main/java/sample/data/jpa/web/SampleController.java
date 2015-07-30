@@ -39,8 +39,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 
+import sample.data.jpa.conf.MySettings;
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.ArticleBean;
+import sample.data.jpa.domain.Audio;
+import sample.data.jpa.domain.AudioAnswer;
+import sample.data.jpa.domain.AudioSnippet;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizRating;
 import sample.data.jpa.domain.QuizWordBean;
@@ -56,6 +60,8 @@ import sample.data.jpa.service.JqGridData;
 import sample.data.jpa.service.MyConstants;
 import sample.data.jpa.service.UserServiceImpl;
 
+import com.google.code.mp3fenge.Mp3Fenge;
+
 @Controller
 @EnableScheduling
 public class SampleController {
@@ -68,6 +74,9 @@ public class SampleController {
 
 	@Autowired
 	private ArticleServiceImpl articleService;
+
+	@Autowired
+	private MySettings mySettings;
 
 	// @Scheduled(fixedDelay = 2 * 60000)
 	@Scheduled(cron = "0 0 * * * ?")
@@ -199,6 +208,14 @@ public class SampleController {
 		return articleBean;
 	}
 
+	@RequestMapping("/getAudio")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public Audio getAudio(long audioId) {
+		Audio audio = this.articleService.getAudio(audioId);
+		return audio;
+	}
+
 	@RequestMapping("/getQuizList")
 	@ResponseBody
 	@Transactional(readOnly = true)
@@ -239,6 +256,16 @@ public class SampleController {
 			String sidx, String sord, long articleId) {
 		JqGridData<SenBean> gridDataList = this.articleService.getSenList2(articleId,
 				getUserId(), rows, page);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getSnippetList")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getSnippetList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord, long audioId) {
+		JqGridData<AudioSnippet> gridDataList = this.articleService.getAudioSnippetList(
+				rows, page, sidx, sord, audioId);
 		return gridDataList.getJsonString();
 	}
 
@@ -315,6 +342,16 @@ public class SampleController {
 			String sidx, String sord) {
 		JqGridData<WordBean2> gridDataList = this.articleService.getMyWordList(
 				getUserId(), rows, page, sidx, sord);
+		return gridDataList.getJsonString();
+	}
+
+	@RequestMapping("/getAudioList")
+	@ResponseBody
+	@Transactional(readOnly = true)
+	public String getAudioList(HttpServletRequest request, int rows, int page,
+			String sidx, String sord) {
+		JqGridData<Audio> gridDataList = this.articleService.getAudioList(rows, page,
+				sidx, sord);
 		return gridDataList.getJsonString();
 	}
 
@@ -451,8 +488,20 @@ public class SampleController {
 
 	@RequestMapping("/submitAnswer")
 	@ResponseBody
-	public String submitAnswer(String answerInfo, long qId) {
-		return this.articleService.submitAnswer(answerInfo, getUserId(), qId);
+	public String submitAnswer(String answerInfo, long snippetId) {
+		return this.articleService.submitAnswer(answerInfo, getUserId(), snippetId);
+	}
+
+	@RequestMapping("/splitAudio")
+	@ResponseBody
+	public String splitAudio(long snippetId, int from, int to, int newTo) {
+		return this.articleService.splitAudio(snippetId, from, to, newTo);
+	}
+
+	@RequestMapping("/getAllAnswer")
+	@ResponseBody
+	public List<AudioAnswer> getAllAnswer(long snippetId) {
+		return this.articleService.getAllAnswer(snippetId);
 	}
 
 	@RequestMapping("/toggleWordFork")
@@ -500,6 +549,34 @@ public class SampleController {
 				System.out.println("bytes:" + bytes);
 				File destFile = new File("uploadFiles/" + getUserId() + "/"
 						+ file.getOriginalFilename());
+				System.out.println("destFile:" + destFile.getAbsolutePath());
+				FileUtils.writeByteArrayToFile(destFile, bytes);
+			}
+			catch (IOException e) {
+				// TODO Auto-generated catch block
+				throw new UnsupportedOperationException("Auto-generated method stub", e);
+			}
+			// store the bytes somewhere
+			// åœ¨è¿™é‡Œå°±å¯ä»¥å¯¹fileè¿›è¡Œå¤„ç†äº†ï¼Œå¯ä»¥æ&nbsp;¹æ®è‡ªå·±çš„éœ€æ±‚æŠŠå®ƒå­˜åˆ°æ•°æ®åº“æˆ–è€…æœåŠ¡å™¨çš„æŸä¸ªæ–‡ä»¶å¤¹
+
+		}
+		else {
+		}
+		return "";
+	}
+
+	@RequestMapping("/uploadAudioFile")
+	@ResponseBody
+	public String uploadAudioFile(@RequestParam("file") MultipartFile file) {
+		System.out.println("audio file:" + file);
+		if (!file.isEmpty()) {
+			try {
+				byte[] bytes = file.getBytes();
+				System.out.println("bytes:" + bytes);
+				File destFile = new File(this.mySettings.getAudioDir() + File.separator
+						+ file.getOriginalFilename()); // + "_" +
+														// System.currentTimeMillis() +
+														// ".mp3"
 				System.out.println("destFile:" + destFile.getAbsolutePath());
 				FileUtils.writeByteArrayToFile(destFile, bytes);
 			}
@@ -618,7 +695,7 @@ public class SampleController {
 	/**
 	 *
 	 */
-	@Scheduled(cron = "0 30 * * * ?")
+	// @Scheduled(cron = "0 30 * * * ?")
 	public void initAudioJob() {
 		this.articleService.initWordAudio();
 		this.articleService.initSenAudio();
@@ -629,6 +706,33 @@ public class SampleController {
 	public String[] getWXShareInfo(String shareUrl) {
 		return this.articleService.getWXShareInfo(shareUrl);
 	}
+
+	@RequestMapping("/getMyAnswer")
+	@ResponseBody
+	public String getMyAnswer(long snippetId) {
+		return this.articleService.getMyAnswer(snippetId, getUserId());
+	}
+
+	@RequestMapping("/addAudio")
+	@ResponseBody
+	public String addAudio(String name, String remark) {
+		Audio audio = new Audio();
+		audio.setName(name);
+		audio.setUrl(name);
+		audio.setRemark(remark);
+		audio.setUser(getUser());
+		audio.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+
+		File audioFile = new File(this.mySettings.getAudioDir() + File.separator + name);
+		Mp3Fenge helper = new Mp3Fenge(audioFile);
+		// helper.generateNewMp3ByTime(new File("testdata/e1.mp3"), 5000, 15000);
+		int trackLength = helper.getMp3Info().getTrackLength();
+		System.out.println("trackLength:" + trackLength);
+		audio.setDuration(trackLength);
+		this.articleService.addAudio(audio);
+		return "";
+	}
+
 	// String name = "test_" + new Date() + ".txt";
 	// if (!file.isEmpty()) {
 	// try {

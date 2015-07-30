@@ -31,7 +31,7 @@ public class AudioServlet extends HttpServlet {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see javax.servlet.GenericServlet#init()
 	 */
 	@Override
@@ -65,7 +65,14 @@ public class AudioServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
-		REAL_FILE_DIR = this.mySettings.getAudioDir();
+		String fileUrlPath = request.getRequestURI().replaceFirst(
+				request.getContextPath(), "");
+		if (fileUrlPath.contains("/audiofiles/realAudio")) {
+			REAL_FILE_DIR = this.mySettings.getAudioDir();
+		}
+		else {
+			REAL_FILE_DIR = this.mySettings.getAudioSnippetDir();
+		}
 		// REAL_FILE_DIR = "C:/zgq/english2/audioDir"; // FIXME
 		// REAL_FILE_DIR =
 		// "/home/vcap/file/c954809f-84d0-4bba-96bd-fb525fc89cf0/audioDir"; // FIXME
@@ -74,8 +81,7 @@ public class AudioServlet extends HttpServlet {
 		// System.out.println("###URI:" + request.getRequestURI());
 		// System.out.println("###URL:" + request.getRequestURL());
 		// System.out.println("###contextPath:" + request.getContextPath());
-		String fileUrlPath = request.getRequestURI().replaceFirst(
-				request.getContextPath(), "");
+		fileUrlPath = fileUrlPath.replace("/audiofiles/realAudio", "");
 		fileUrlPath = fileUrlPath.replace("/audiofiles", "");
 		String readFilePath = REAL_FILE_DIR + File.separator + fileUrlPath;
 
@@ -88,5 +94,4 @@ public class AudioServlet extends HttpServlet {
 		IOUtils.write(FileUtils.readFileToByteArray(f), out);
 		out.close();
 	}
-
 }

@@ -32,6 +32,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -68,11 +69,13 @@ import sample.data.jpa.conf.MySettings;
 import sample.data.jpa.domain.Article;
 import sample.data.jpa.domain.ArticleBean;
 import sample.data.jpa.domain.ArticleWordAsso;
+import sample.data.jpa.domain.Audio;
+import sample.data.jpa.domain.AudioAnswer;
+import sample.data.jpa.domain.AudioSnippet;
 import sample.data.jpa.domain.MyWordSummary;
 import sample.data.jpa.domain.Quiz;
 import sample.data.jpa.domain.QuizContent;
 import sample.data.jpa.domain.QuizRating;
-import sample.data.jpa.domain.QuizResult;
 import sample.data.jpa.domain.QuizWordBean;
 import sample.data.jpa.domain.SenBean;
 import sample.data.jpa.domain.SenSummary;
@@ -85,6 +88,9 @@ import sample.data.jpa.domain.Word;
 import sample.data.jpa.domain.WordBean2;
 import sample.data.jpa.repository.ArticleRepository;
 import sample.data.jpa.repository.ArticleWordAssoRepository;
+import sample.data.jpa.repository.AudioAnswerRepository;
+import sample.data.jpa.repository.AudioRepository;
+import sample.data.jpa.repository.AudioSnippetRepository;
 import sample.data.jpa.repository.QuizContentRepository;
 import sample.data.jpa.repository.QuizRepository;
 import sample.data.jpa.repository.QuizResultRepository;
@@ -97,6 +103,9 @@ import sample.data.jpa.repository.WordRepository;
 import sample.data.jpa.service.util.MyUtil;
 import sample.data.jpa.weixin.Sign;
 import sample.data.jpa.weixin.WeiXinUser;
+
+import com.google.code.mp3fenge.Mp3Fenge;
+
 import edu.stanford.nlp.process.DocumentPreprocessor;
 
 @Component("articleService")
@@ -120,10 +129,17 @@ public class ArticleServiceImpl {
 	@Autowired
 	QuizContentRepository quizContentRepository;
 	@Autowired
+	AudioSnippetRepository audioSnippetRepository;
+	@Autowired
+	AudioAnswerRepository audioAnswerRepository;
+	@Autowired
 	JdbcTemplate jdbcTemplate;
 
 	@Autowired
 	QuizResultRepository quizResultRepository;
+
+	@Autowired
+	AudioRepository audioRepository;
 
 	@Autowired
 	private MySettings mySettings;
@@ -853,6 +869,11 @@ public class ArticleServiceImpl {
 		return articleList.isEmpty() ? null : articleList.get(0);
 	}
 
+	public Audio getAudio(long audioId) {
+		Audio audio = this.audioRepository.findOne(audioId);
+		return audio;
+	}
+
 	public JqGridData<Quiz> getQuizList(int rows, int currPage, String sidx, String sord) {
 		if (StringUtils.isEmpty(sidx)) {
 			sidx = "hot";
@@ -883,6 +904,46 @@ public class ArticleServiceImpl {
 
 		JqGridData<Quiz> gridData = new JqGridData<Quiz>(totalNumberOfPages, currPage,
 				totalNumberOfRecords, quizList2);
+		return gridData;
+	}
+
+	public JqGridData<Audio> getAudioList(int rows, int currPage, String sidx, String sord) {
+		if (StringUtils.isEmpty(sidx)) {
+			sidx = "id";
+			sord = "desc";
+		}
+		Pageable pageable = new PageRequest(currPage - 1, rows,
+				"asc".equals(sord) ? Direction.ASC : Direction.DESC, sidx);
+		List<Audio> quizList = this.audioRepository.findAll(pageable).getContent();
+
+		long totalCount = quizList.size();
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<Audio> gridData = new JqGridData<Audio>(totalNumberOfPages, currPage,
+				totalNumberOfRecords, quizList);
+		return gridData;
+	}
+
+	public JqGridData<AudioSnippet> getAudioSnippetList(int rows, int currPage,
+			String sidx, String sord, long audioId) {
+		if (StringUtils.isEmpty(sidx)) {
+			sidx = "start";
+			sord = "asc";
+		}
+		Pageable pageable = new PageRequest(currPage - 1, rows,
+				"asc".equals(sord) ? Direction.ASC : Direction.DESC, sidx);
+		List<AudioSnippet> quizList = this.audioSnippetRepository
+				.findByAudioIdOrderByStartAsc(pageable, audioId).getContent();
+
+		long totalCount = quizList.size();
+		long totalNumberOfRecords = totalCount;
+		long totalNumberOfPages = (totalCount % rows == 0 ? (totalCount / rows)
+				: (totalCount / rows + 1));
+
+		JqGridData<AudioSnippet> gridData = new JqGridData<AudioSnippet>(
+				totalNumberOfPages, currPage, totalNumberOfRecords, quizList);
 		return gridData;
 	}
 
@@ -1316,7 +1377,7 @@ public class ArticleServiceImpl {
 
 	public JqGridData<SenBean> getMySenList(long userId, int rows, int currPage,
 			String sidx, String sord) {
-		String audioDirStr = this.mySettings.getAudioDir();
+		String audioDirStr = this.mySettings.getAudioSnippetDir();
 		System.out.println("mySettings.getAudioDir():" + audioDirStr);
 
 		String sql = "SELECT s.id, s.content, s.last_upt, s.audio_path FROM sentence s, user_sen_asso usa "
@@ -1561,7 +1622,7 @@ public class ArticleServiceImpl {
 		String content = sen.getContent();
 		if (StringUtils.isBlank(audioPath)) {
 			audioPath = MyUtil.genAudioFile(
-					ArticleServiceImpl.this.mySettings.getAudioDir(), content);
+					ArticleServiceImpl.this.mySettings.getAudioSnippetDir(), content);
 			if (StringUtils.isNotBlank(audioPath)) {
 				sen.setAudioPath(audioPath);
 				sen.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -1586,7 +1647,7 @@ public class ArticleServiceImpl {
 		String audioPath = word.getAudioPath();
 		if (StringUtils.isBlank(audioPath)) {
 			audioPath = MyUtil.genAudioFile(
-					ArticleServiceImpl.this.mySettings.getAudioDir(), content2);
+					ArticleServiceImpl.this.mySettings.getAudioSnippetDir(), content2);
 			if (StringUtils.isNotBlank(audioPath)) {
 				word.setAudioPath(audioPath);
 				word.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -1686,54 +1747,39 @@ public class ArticleServiceImpl {
 	/**
 	 * @param answerInfo
 	 */
-	public String submitAnswer(String answerInfo, long userId, long qId) {
-		Quiz quiz = null;
-		if (qId != 0) {
-			// this.quizResultRepository.deleteByUserIdAndQuizId(userId, qId);
-			List<QuizResult> oldQRList = this.quizResultRepository.findByUserIdAndQuizId(
-					userId, qId);
-			if (!oldQRList.isEmpty()) {
-				return "您已经提交过，不能再提交了";
-			}
-			quiz = this.quizRepository.findOne(qId);
-			quiz.setHot(quiz.getHot() + 1);
-		}
-		String[] answers = StringUtils.split(answerInfo, ",");
-		for (int i = 0; i < answers.length; i++) {
-			String[] oneAnswerArr = answers[i].split(":");
-			long wordId = Long.parseLong(oneAnswerArr[0]);
-			int isRight = Integer.parseInt(oneAnswerArr[1]);
-			QuizResult qr = new QuizResult();
+	public String submitAnswer(String answerInfo, long userId, long snippetId) {
+		List<AudioAnswer> audioAnswerList = this.audioAnswerRepository
+				.findByAudioSnippetIdAndAuthorId(snippetId, userId);
 
+		AudioAnswer audioAnswer = null;
+		if (!audioAnswerList.isEmpty()) {
+			audioAnswer = audioAnswerList.get(0);
+		}
+		else {
+			audioAnswer = new AudioAnswer();
 			User user = new User();
 			user.setId(userId);
-			qr.setUser(user);
-			Word word = new Word();
-			word.setId(wordId);
-			qr.setWord(word);
-			qr.setIsRight(isRight);
-			String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-					.format(new Date());
-			qr.setLastUpt(dateStr);
-			if (quiz != null) {
-				qr.setQuiz(quiz);
-			}
-			this.quizResultRepository.save(qr);
-
-			UserWordAsso uwa = this.userWordAssoRepository.findByUserIdAndWordId(userId,
-					word.getId());
-			if (uwa == null) {
-				uwa = new UserWordAsso();
-				uwa.setUser(user);
-				uwa.setWord(word);
-			}
-			uwa.setInterest("1");
-			uwa.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-			this.userWordAssoRepository.save(uwa);
+			audioAnswer.setAuthor(user);
+			AudioSnippet audioSnippet = new AudioSnippet();
+			audioSnippet.setId(snippetId);
+			audioAnswer.setAudioSnippet(audioSnippet);
 		}
+		audioAnswer.setContent(answerInfo);
+		audioAnswer.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+				.format(new Date()));
 
-		return "提交成功";
+		this.audioAnswerRepository.save(audioAnswer);
 
+		return "submit successfully";
+	}
+
+	/**
+	 * @param answerInfo
+	 */
+	public List<AudioAnswer> getAllAnswer(long snippetId) {
+		List<AudioAnswer> audioAnswerList = this.audioAnswerRepository
+				.findByAudioSnippetIdOrderByRankDesc(snippetId);
+		return audioAnswerList;
 	}
 
 	/**
@@ -2195,8 +2241,8 @@ public class ArticleServiceImpl {
 						String content2 = content + " " + contentCharStr + " " + content;
 						if (StringUtils.isBlank(audioPath)) {
 							audioPath = MyUtil.genAudioFile(
-									ArticleServiceImpl.this.mySettings.getAudioDir(),
-									content2);
+									ArticleServiceImpl.this.mySettings
+											.getAudioSnippetDir(), content2);
 						}
 
 						long wordId = rs.getLong("id");
@@ -2218,7 +2264,7 @@ public class ArticleServiceImpl {
 	}
 
 	public void initSenAudio() {
-		String audioDirStr = this.mySettings.getAudioDir();
+		String audioDirStr = this.mySettings.getAudioSnippetDir();
 		System.out.println("mySettings.getAudioDir():" + audioDirStr);
 
 		String sql = "SELECT s.id, s.content, s.last_upt, s.audio_path FROM sentence s, user_sen_asso usa "
@@ -2232,7 +2278,8 @@ public class ArticleServiceImpl {
 				String content = rs.getString("content");
 				if (StringUtils.isBlank(audioPath)) {
 					audioPath = MyUtil.genAudioFile(
-							ArticleServiceImpl.this.mySettings.getAudioDir(), content);
+							ArticleServiceImpl.this.mySettings.getAudioSnippetDir(),
+							content);
 				}
 				long senId = rs.getLong("id");
 				if (StringUtils.isNotBlank(audioPath)) {
@@ -2248,5 +2295,71 @@ public class ArticleServiceImpl {
 
 			}
 		});
+	}
+
+	/**
+	 * @param from
+	 * @param to
+	 * @param newTo
+	 * @return
+	 */
+	public String splitAudio(long snippetId, int from, int to, int newTo) {
+		AudioSnippet audioSnippet = this.audioSnippetRepository.findOne(snippetId);
+		audioSnippet.setEnd(newTo);
+		AudioSnippet audioSnippet2 = new AudioSnippet();
+		audioSnippet2.setStart(newTo);
+		audioSnippet2.setEnd(to);
+		Audio audio = audioSnippet.getAudio();
+		audioSnippet2.setAudio(audio);
+
+		File audioFile = new File(this.mySettings.getAudioDir() + File.separator
+				+ audio.getUrl());
+		Mp3Fenge helper = new Mp3Fenge(audioFile);
+		String audio1FileName = "seg_" + System.currentTimeMillis() + "_"
+				+ new Random().nextInt(10000) + ".mp3";
+		helper.generateNewMp3ByTime(new File(this.mySettings.getAudioDir(),
+				audio1FileName), from * 1000, newTo * 1000);
+
+		String audio2FileName = "seg_" + System.currentTimeMillis() + "_"
+				+ new Random().nextInt(10000) + ".mp3";
+		helper.generateNewMp3ByTime(new File(this.mySettings.getAudioDir(),
+				audio2FileName), newTo * 1000, to * 1000);
+
+		audioSnippet.setUrl(audio1FileName);
+		audioSnippet2.setUrl(audio2FileName);
+
+		this.audioSnippetRepository.save(audioSnippet);
+		this.audioSnippetRepository.save(audioSnippet2);
+		return audioSnippet2.getId() + "";
+	}
+
+	/**
+	 * @param audio
+	 */
+	public void addAudio(Audio audio) {
+		this.audioRepository.save(audio);
+		AudioSnippet audioSnippet = new AudioSnippet();
+		audioSnippet.setAudio(audio);
+		audioSnippet.setStart(0);
+		audioSnippet.setEnd(audio.getDuration());
+		this.audioSnippetRepository.save(audioSnippet);
+	}
+
+	/**
+	 * @param snippetId
+	 * @param userId
+	 * @return
+	 */
+	public String getMyAnswer(long snippetId, long userId) {
+		String answer = "";
+		List<AudioAnswer> audioAnswerList = this.audioAnswerRepository
+				.findByAudioSnippetIdAndAuthorId(snippetId, userId);
+
+		AudioAnswer audioAnswer = null;
+		if (!audioAnswerList.isEmpty()) {
+			audioAnswer = audioAnswerList.get(0);
+			answer = audioAnswer.getContent();
+		}
+		return answer;
 	}
 }

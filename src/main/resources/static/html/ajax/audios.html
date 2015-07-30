@@ -1,0 +1,352 @@
+
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/jquery-ui.min.css" />
+<link rel="stylesheet" href="../../assets/css/datepicker.css" />
+<link rel="stylesheet" href="../../assets/css/ui.jqgrid.css" />
+<link rel="stylesheet" href="../../assets/css/dropzone.css" />
+
+<style>
+.input-answer {
+	color : black;
+}
+
+.title2 {
+	font-size: 20px;
+}
+
+.title3 {
+	font-size: 20px;
+	cursor: pointer;
+	color: red;
+}
+</style>
+
+<!-- ajax layout which only needs content area -->
+<div class="page-header">
+	<h1>
+		Audio List
+	</h1>
+</div><!-- /.page-header -->
+
+<div class="row">
+	<div class="col-xs-12">
+
+		<div class="col-xs-12">
+			<div id="fileUpload">
+					<div>
+						<form action="../../uploadAudioFile" class="dropzone" id="dropzone">
+							<div class="fallback">
+								<input name="file" type="file" multiple="" />
+							</div>
+						</form>
+					</div>
+					<div style="margin-top: 20px;">
+						remark: <textarea id="remark" name="remark" class="form-control" placeholder="this is XXX related"></textarea>
+					</div>
+					<div class="clearfix form-actions">
+						<div class="col-md-offset-3 col-md-12">
+							<button class="btn btn-info" type="button" onclick="addArticle(this)">
+								<i class="ace-icon fa fa-check bigger-110"></i>
+								Submit
+							</button>
+						</div>
+					</div>
+			</div>
+		
+			<div id="mySenList" style="font-size: 20px;">
+			</div>
+			<div id="loading" style="font-size: 20px;display: none;">Loading....</div>
+			<button id="loadMoreBtn"  class="btn btn-info" style="display: none;" type="button"  onclick="refreshWordList()">加载更多</button>
+		</div>
+		
+		<table id="grid-table"></table>
+
+		<div id="grid-pager"></div>
+
+		<script type="text/javascript">
+			var $path_base = "../..";//in Ace demo this will be used for editurl parameter
+		</script>
+
+		<!-- PAGE CONTENT ENDS -->
+	</div><!-- /.col -->
+</div><!-- /.row -->
+
+<!-- page specific plugin scripts -->
+<script type="text/javascript">
+	var scripts = [null,"../../assets/js/date-time/bootstrap-datepicker.min.js", "../../assets/js/dropzone.min.js",  null]
+	var currPage = 1;
+	var rowSize = 10;
+	var loadedSize = 0;
+	var currMaxRowIndex = 1;
+	var articleId = "";
+	var allLoadDone = false;
+	var loading = false;
+	
+	var fileNameVar = "";
+	
+	ace.load_ajax_scripts(scripts, function() {
+	  //inline scripts related to this page
+		jQuery(function($) { 
+			refreshWordList();
+			
+			$(document).scrollTop(0);
+			$(window).scroll(function(){
+				  //console.log("$(document).scrollTop():" + $(document).scrollTop() + " $(document).height():" + $(document).height()
+				//		   + " $(window).height():" + $(window).height());
+				if(allLoadDone) {
+					return;
+				}
+		        if($(document).scrollTop() >= $(document).height() - $(window).height()){
+		        	if(!loading) {
+			        	$("#loading").show();
+			        	refreshWordList();
+			        	$("#loading").hide();
+		        	}
+		        }
+		      });	
+			
+			
+			Dropzone.autoDiscover = false;
+			try {
+			  var myDropzone = new Dropzone("#dropzone" , {
+			    paramName: "file", // The name that will be used to transfer the file
+			    maxFilesize: 100, // MB
+			
+				addRemoveLinks : true,
+				dictDefaultMessage :
+				'<span class="bigger-150 bolder"><i class="ace-icon fa fa-caret-right red"></i> Drop files</span> to upload \
+				<span class="smaller-80 grey">(or click)</span> <br /> \
+				<i class="upload-icon ace-icon fa fa-cloud-upload blue fa-3x"></i>'
+			,
+				dictResponseError: 'Error while uploading file!',
+				
+				//change the previewTemplate to use Bootstrap progress bars
+				previewTemplate: "<div class=\"dz-preview dz-file-preview\">\n  <div class=\"dz-details\">\n    <div class=\"dz-filename\"><span data-dz-name></span></div>\n    <div class=\"dz-size\" data-dz-size></div>\n    <img data-dz-thumbnail />\n  </div>\n  <div class=\"progress progress-small progress-striped active\"><div class=\"progress-bar progress-bar-success\" data-dz-uploadprogress></div></div>\n  <div class=\"dz-success-mark\"><span></span></div>\n  <div class=\"dz-error-mark\"><span></span></div>\n  <div class=\"dz-error-message\"><span data-dz-errormessage></span></div>\n</div>",
+				
+				 init: function() {
+		            this.on("success", function(file) {
+		                console.log("File " + file );
+		                console.log("File " + file.name + " uploaded");
+		                fileNameVar = file.name;
+		            });
+		        }
+			  });
+			} catch(e) {
+			  alert('Dropzone.js does not support older browsers!');
+			}
+		});
+	});
+	
+
+	function addArticle(btnObj) {
+		$.ajax({
+			type : "POST",
+			url : "../../addAudio",
+			data : {
+				name : fileNameVar,
+				remark : $("#remark").val()
+			},
+			async : true,
+			dataType : "text",
+			success : function(data) {
+				//console.log("data:" + data);
+				alert("upload success");
+				window.location = "ajax.html#page/audios";
+			}
+
+		});
+		
+		$(btnObj).attr("disabled", true);
+	}
+	
+	function refreshWordList(customRowSize) {
+		console.log("customRowSize:" + customRowSize );
+		//console.log("type:" + (typeof(customRowSize) == "undefined") );
+		
+		if(allLoadDone) {
+			return;
+		}
+		var rowSize2 = (typeof(customRowSize) == "undefined") ? rowSize : customRowSize;
+		loading = true;
+		$
+				.ajax({
+					type : "POST",
+					url : "../../getAudioList",
+					data : {
+						page : currPage,
+						rows : rowSize2
+					},
+					async : true,
+					dataType : "json",
+					success : function(data) {
+						
+						if(currPage >= data.total) {
+							$("#loadMoreBtn").attr("disabled", true);
+							$("#loadMoreBtn").hide();
+							allLoadDone = true;
+						} else {
+							currPage++;
+						}
+						
+						loadedSize  += data.rows.length;
+						console.log("data.length:" + data.rows.length + " loadedSize:" + loadedSize);
+						for (var i = 0; i < data.rows.length; i++) {
+							var oneArticleHtml = "<div  style='border: 3px dashed #ccc;margin-top:5px;'   >";
+							oneArticleHtml += "<table   class='table table-striped table-bordered table-hover'>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>" + (currMaxRowIndex++) + "/" + data.records + ": " + data.rows[i].name + "</td>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += "	    " + data.rows[i].remark;
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+							oneArticleHtml += "<tr>";
+							oneArticleHtml += "	  <td colspan=2>";
+							oneArticleHtml += '		<button  class="btn btn-info" type="button"  onclick="getSnippets(this, ' + data.rows[i].id + ')">查看明细</button>';
+							oneArticleHtml += "	  </td>";
+							oneArticleHtml += "</tr>";
+							
+							oneArticleHtml += "</table>";
+							oneArticleHtml += "</div>";
+							 
+							//alert("oneArticleHtml:" + oneArticleHtml);
+							$("#mySenList").append(oneArticleHtml);
+						}
+						
+						var audioElms = document.getElementsByName("audioElm");
+						for(var i = 0; i < audioElms.length; i++) {
+							$(audioElms[i]).bind('pause', {audioElms:audioElms,index:i}, function(event) {
+								console.log("index:" + event.data.index);
+								var oneAudio = audioElms[event.data.index];
+								if(oneAudio.currentTime == oneAudio.duration && isChainPlaying) {
+									play2(audioElms, event.data.index);
+								}
+							});
+						}
+						
+						loading = false;
+					},
+					error : function(data) {
+						alert("submit result error, please contact administrator");
+					}
+
+				});
+	}
+	
+	var isPlaying = false;
+	var isChainPlaying = false;
+	var supposeLoadingSize = 100;
+	function playAudio() {
+		isChainPlaying = true;
+		var audioElms = document.getElementsByName("audioElm");
+		console.log("isPlaying:" + isPlaying);
+		supposeLoadingSize = $("#playCountSel").val();
+		
+		console.log("loadedSize:" + loadedSize + " supposeLoadingSize:" + supposeLoadingSize);
+		if(loadedSize <= supposeLoadingSize) {
+			console.log("###refreshWordList");
+			refreshWordList(supposeLoadingSize - rowSize);
+		}
+		
+		if(!isPlaying) {
+			$("#togglePlayBtn").text("停止播放");
+			isPlaying = true;
+			var index = 0;
+			if(index < audioElms.length) {
+				audioElms[index].play();
+			}
+		} else {
+			$("#togglePlayBtn").text("播放音频");
+			for(var i = 0; i < audioElms.length; i++) {
+				audioElms[i].pause();
+			}	
+			isPlaying = false;
+			isChainPlaying = false;
+		}
+		
+		
+	}
+	
+	function play2(audioElms, index) {
+		console.log("audioElms:" + audioElms + " index:" + index + " audioElms.length:" + audioElms.length);
+		if(index + 1 < audioElms.length) {
+			audioElms[index + 1].currentTime = 0;
+			audioElms[index + 1].play();
+		} else {
+			$("#togglePlayBtn").text("播放音频");
+			isPlaying = false;
+			isChainPlaying = false;
+		}
+	}
+	
+	function toggleForkSen(spanObj, senId) {
+		console.log("toggleForkSen senId:" + senId);
+		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 5 : 0; 
+		if(forkValue == 0) {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+		} else {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+		}					
+		$.ajax({
+			type : "POST",
+			url : "../../toggleForkSen",
+			data : {
+				senId : senId,
+				forkValue : forkValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data == "0") {
+					alert("please login first");
+				}
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	
+
+	function toggleForkWord(spanObj, wordId) {
+		console.log("toggleFork wordId:" + wordId);
+		var forkValue = $(spanObj).html().indexOf("glyphicon-star-empty") >= 0 ? 1 : 0; 
+		if(forkValue == 0) {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star-empty'></i>");
+		} else {
+			$(spanObj).html("&nbsp;<i class='ace-icon glyphicon glyphicon-star'></i>");
+		}					
+		$.ajax({
+			type : "POST",
+			url : "../../toggleWordFork",
+			data : {
+				wordId : wordId,
+				forkValue : forkValue
+			},
+			async : true,
+			dataType : "json",
+			success : function(data) {
+				if(data == "0") {
+					alert("please login first");
+				}
+				//rowData.tempRank = parseRank(newRank);
+				//$("#grid-table").jqGrid('setRowData', id, rowData);
+			},
+			error : function(data) {
+				alert("submit result error, please contact administrator");
+			}
+
+		});
+	}
+	
+	function getSnippets(obj, audioId) {
+		console.log("audioId:" + audioId);
+		window.location = "ajax.html?audioId=" + audioId + "#page/audioSnippets";
+	}
+</script>

@@ -61,6 +61,7 @@ import sample.data.jpa.service.MyConstants;
 import sample.data.jpa.service.UserServiceImpl;
 
 import com.google.code.mp3fenge.Mp3Fenge;
+import com.google.code.mp3fenge.Mp3Info;
 
 @Controller
 @EnableScheduling
@@ -730,9 +731,13 @@ public class SampleController {
 		audio.setLastUpt(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 
 		File audioFile = new File(this.mySettings.getAudioDir() + File.separator + name);
+		System.out.println("audioFile:" + audioFile.getAbsolutePath());
+		System.out.println("audioFile exist:" + audioFile.exists());
 		Mp3Fenge helper = new Mp3Fenge(audioFile);
 		// helper.generateNewMp3ByTime(new File("testdata/e1.mp3"), 5000, 15000);
-		int trackLength = helper.getMp3Info().getTrackLength();
+		Mp3Info mp3Info = helper.getMp3Info();
+		System.out.println("mp3Info:" + mp3Info);
+		int trackLength = mp3Info.getTrackLength();
 		System.out.println("trackLength:" + trackLength);
 		audio.setDuration(trackLength);
 		this.articleService.addAudio(audio);
